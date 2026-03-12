@@ -58,9 +58,15 @@ namespace GPCS_ExchangeRate.Infrastructure.Migrations
                 });
 
             migrationBuilder.CreateIndex(
-                name: "IX_ExchangeRateDetails_ExchangeRateHeaderId",
+                name: "UIX_ExchangeRateDetail_HeaderId_CurrencyCode",
                 table: "ExchangeRateDetails",
-                column: "ExchangeRateHeaderId");
+                columns: new[] { "ExchangeRateHeaderId", "CurrencyCode" },
+                unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "IX_ExchangeRateHeader_DocumentNumber",
+                table: "ExchangeRateHeaders",
+                column: "DocumentNumber");
 
             migrationBuilder.CreateIndex(
                 name: "IX_ExchangeRateHeader_Period",

@@ -19,6 +19,9 @@ public class ExchangeRateHeaderConfiguration : IEntityTypeConfiguration<Exchange
         builder.Property(h => h.DocumentNumber)
             .HasMaxLength(50);
 
+        builder.HasIndex(h => h.DocumentNumber)
+            .HasDatabaseName("IX_ExchangeRateHeader_DocumentNumber");
+
         builder.Property(h => h.DocumentId);
 
         builder.Property(h => h.CreatedBy)

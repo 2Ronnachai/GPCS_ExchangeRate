@@ -14,6 +14,11 @@ public class ExchangeRateDetailConfiguration : IEntityTypeConfiguration<Exchange
             .IsRequired()
             .HasMaxLength(10);
 
+        // Unique composite: 1 header cannot have duplicate CurrencyCode
+        builder.HasIndex(d => new { d.ExchangeRateHeaderId, d.CurrencyCode })
+            .IsUnique()
+            .HasDatabaseName("UIX_ExchangeRateDetail_HeaderId_CurrencyCode");
+
         builder.Property(d => d.Rate)
             .HasColumnType("decimal(18,6)");
 

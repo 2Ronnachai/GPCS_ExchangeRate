@@ -64,7 +64,9 @@ namespace GPCS_ExchangeRate.Infrastructure.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("ExchangeRateHeaderId");
+                    b.HasIndex("ExchangeRateHeaderId", "CurrencyCode")
+                        .IsUnique()
+                        .HasDatabaseName("UIX_ExchangeRateDetail_HeaderId_CurrencyCode");
 
                     b.ToTable("ExchangeRateDetails");
                 });
@@ -103,6 +105,9 @@ namespace GPCS_ExchangeRate.Infrastructure.Migrations
                         .HasColumnType("nvarchar(100)");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("DocumentNumber")
+                        .HasDatabaseName("IX_ExchangeRateHeader_DocumentNumber");
 
                     b.HasIndex("Period")
                         .HasDatabaseName("IX_ExchangeRateHeader_Period");
