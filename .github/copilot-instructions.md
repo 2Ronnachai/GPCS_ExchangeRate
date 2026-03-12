@@ -1,8 +1,8 @@
 # GPCS_ExchangeRate — Copilot Instructions
 
 ## Project Overview
-ASP.NET Core 9 Web API สำหรับจัดการ Exchange Rate แบบ document-based workflow
-ผูกกับ External Document Control API สำหรับ Submit/Rollback เอกสาร
+ASP.NET Core 9 Web API for managing Exchange Rates with a document-based workflow.
+Integrates with an External Document Control API for document Submit/Rollback operations.
 
 ---
 
@@ -14,27 +14,27 @@ ASP.NET Core 9 Web API สำหรับจัดการ Exchange Rate แบ
 Domain → Application → Infrastructure → Api
 ```
 
-| Layer | Project | หน้าที่ |
-|-------|---------|---------|
-| Domain | `GPCS_ExchangeRate.Domain` | Entities, Interfaces (ไม่ depend ใคร) |
+| Layer | Project | Responsibility |
+|-------|---------|----------------|
+| Domain | `GPCS_ExchangeRate.Domain` | Entities, Interfaces (no dependencies) |
 | Application | `GPCS_ExchangeRate.Application` | CQRS Handlers, DTOs, AutoMapper |
 | Infrastructure | `GPCS_ExchangeRate.Infrastructure` | EF Core, Repositories, UnitOfWork |
 | Api | `GPCS_ExchangeRate.Api` | Controllers, Middleware, DI, Program.cs |
 
-**Dependency rule:** แต่ละ layer depends เฉพาะ layer ที่อยู่ด้านในเท่านั้น (Infrastructure ไม่ได้ depend Api)
+**Dependency rule:** Each layer depends only on the layer directly inside it. Infrastructure does not depend on Api.
 
 ---
 
 ## Key Patterns & Conventions
 
 ### Entities
-- ทุก entity **ต้อง** สืบทอดจาก `AuditableEntity` (ซึ่งสืบทอดจาก `BaseEntity`)
+- Every entity **must** inherit from `AuditableEntity` (which inherits from `BaseEntity`)
 - `BaseEntity` — `Id` (int, PK, auto-increment)
 - `AuditableEntity` — `CreatedAt`, `CreatedBy`, `UpdatedAt?`, `UpdatedBy?`
-- Audit fields ถูก **auto-fill ใน `AppDbContext.SaveChangesAsync`** ผ่าน `ICurrentUserService`
+- Audit fields are **auto-filled in `AppDbContext.SaveChangesAsync`** via `ICurrentUserService`
 
 ```csharp
-// ตัวอย่าง entity ใหม่
+// Example of a new entity
 public class MyEntity : AuditableEntity
 {
     public string Name { get; set; } = string.Empty;
@@ -42,22 +42,22 @@ public class MyEntity : AuditableEntity
 ```
 
 ### Repository Pattern
-- **Generic Repo:** `GenericRepository<T>` implement `IGenericRepository<T>` — CRUD ทั่วไป
-- **Specific Repo:** สืบทอด `GenericRepository<T>` และ implement interface เฉพาะ
+- **Generic Repo:** `GenericRepository<T>` implements `IGenericRepository<T>` — common CRUD operations
+- **Specific Repo:** Inherits from `GenericRepository<T>` and implements its own specific interface
 
 ```csharp
-// ตัวอย่าง specific repo
+// Example of a specific repository
 public class MyEntityRepository : GenericRepository<MyEntity>, IMyEntityRepository
 {
     public MyEntityRepository(AppDbContext context) : base(context) { }
-    // เพิ่ม method เฉพาะตรงนี้
+    // Add entity-specific methods here
 }
 ```
 
-- **UnitOfWork** expose repo ผ่าน properties แบบ lazy-init, wrap transaction
+- **UnitOfWork** exposes repositories via lazy-initialized properties and wraps transactions
 
 ### CQRS (MediatR)
-Feature folder structure ใน Application layer:
+Feature folder structure in the Application layer:
 
 ```
 Features/
@@ -75,37 +75,37 @@ Features/
         └── Create{Entity}Dto.cs
 ```
 
-**Command** = เปลี่ยนแปลง state (Insert/Update/Delete)  
-**Query** = อ่านข้อมูลอย่างเดียว (ไม่แก้ DB)
+**Command** = mutates state (Insert/Update/Delete)  
+**Query** = read-only (no DB writes)
 
 ### DTOs & AutoMapper
-- Map จาก Entity → Dto ผ่าน `AutoMapper` (ไม่ map กลับ)
-- Profile อยู่ที่ `Application/Common/Mappings/`
-- `Period` ใน Entity เป็น `DateTime` (วันแรกของเดือน เช่น 2026-03-01)
-- `Period` ใน DTO/Request เป็น `string "yyyyMM"` เช่น "202603"
-- แปลงใน Handler ด้วย `TryParsePeriod` helper
+- Map Entity → Dto via `AutoMapper` (one-way only, never map back)
+- Profiles are located at `Application/Common/Mappings/`
+- `Period` in Entity is `DateTime` (first day of the month, e.g. 2026-03-01)
+- `Period` in DTO/Request is `string "yyyyMM"`, e.g. "202603"
+- Conversion is done in the Handler using the `TryParsePeriod` helper
 
 ---
 
 ## Domain Model
 
 ### ExchangeRateHeader
-| Field | Type | หมายเหตุ |
-|-------|------|----------|
-| `Period` | `DateTime` | วันแรกของเดือน, UI ส่ง "202603" |
-| `DocumentNumber` | `string?` | จาก Document Control API |
-| `DocumentId` | `string?` | จาก Document Control API |
-| `Details` | `ICollection<ExchangeRateDetail>` | Navigation |
+| Field | Type | Notes |
+|-------|------|-------|
+| `Period` | `DateTime` | First day of month; UI sends "202603" |
+| `DocumentNumber` | `string?` | From Document Control API |
+| `DocumentId` | `string?` | From Document Control API |
+| `Details` | `ICollection<ExchangeRateDetail>` | Navigation property |
 
 ### ExchangeRateDetail
-| Field | Type | หมายเหตุ |
-|-------|------|----------|
-| `CurrencyCode` | `string` | เช่น "USD", "JPY" (Base = THB) |
-| `Rate` | `decimal(18,6)` | Full precision ที่ user กรอก |
+| Field | Type | Notes |
+|-------|------|-------|
+| `CurrencyCode` | `string` | e.g. "USD", "JPY" (Base currency = THB) |
+| `Rate` | `decimal(18,6)` | Full precision as entered by user |
 | `Rate2Digit` | `decimal(18,2)` | Auto-calculated: `Math.Round(Rate, 2)` |
 | `Rate4Digit` | `decimal(18,4)` | Auto-calculated: `Math.Round(Rate, 4)` |
 
-> **Rate2Digit / Rate4Digit คำนวณอัตโนมัติใน CommandHandler** — ไม่รับจาก user
+> **Rate2Digit / Rate4Digit are calculated automatically in the CommandHandler** — never accepted from user input
 
 ---
 
@@ -113,31 +113,31 @@ Features/
 
 ### Naming
 - **Files/Classes:** PascalCase
-- **Interfaces:** ขึ้นต้นด้วย `I` เสมอ เช่น `IExchangeRateHeaderRepository`
-- **Private fields:** `_camelCase` เช่น `_unitOfWork`
-- **Async methods:** ลงท้ายด้วย `Async` เสมอ
+- **Interfaces:** Always prefixed with `I`, e.g. `IExchangeRateHeaderRepository`
+- **Private fields:** `_camelCase`, e.g. `_unitOfWork`
+- **Async methods:** Always suffixed with `Async`
 
 ### Error Handling
-- **Global Exception Middleware** (`ExceptionHandlingMiddleware`) จัดการทุก unhandled exception
-- โยน `ArgumentException` สำหรับ validation error → จะได้ 400 BadRequest
-- โยน `KeyNotFoundException` สำหรับ not found → จะได้ 404 NotFound
+- **Global Exception Middleware** (`ExceptionHandlingMiddleware`) handles all unhandled exceptions
+- Throw `ArgumentException` for validation errors → returns 400 BadRequest
+- Throw `KeyNotFoundException` for not found → returns 404 NotFound
 
 ### EF Core
-- ใช้ **Fluent API** ใน `IEntityTypeConfiguration<T>` เท่านั้น (ไม่ใช้ Data Annotations บน Entity)
-- Configuration files อยู่ที่ `Infrastructure/Data/Configurations/`
-- `decimal` fields ต้องระบุ precision ใน config เสมอ
+- Use **Fluent API** in `IEntityTypeConfiguration<T>` only (no Data Annotations on entities)
+- Configuration files are located at `Infrastructure/Data/Configurations/`
+- All `decimal` fields must specify precision in the configuration
 
 ### Controller
-- **ไม่มี business logic ใน Controller** — ส่งต่อ MediatR ทั้งหมด
-- ใช้ `[ProducesResponseType]` ทุก action เพื่อ Swagger ที่ถูกต้อง
+- **No business logic in Controllers** — delegate everything to MediatR
+- Use `[ProducesResponseType]` on every action for accurate Swagger documentation
 
 ---
 
 ## Tech Stack
 
-| Technology | Version | ใช้ใน |
-|-----------|---------|-------|
-| .NET | 9.0 | ทุก project |
+| Technology | Version | Used In |
+|-----------|---------|---------|
+| .NET | 9.0 | All projects |
 | ASP.NET Core | 9.0 | Api layer |
 | Entity Framework Core | 9.0.0 | Infrastructure |
 | SQL Server | - | Database |
