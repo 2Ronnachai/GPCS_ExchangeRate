@@ -94,7 +94,7 @@ Features/
 |-------|------|-------|
 | `Period` | `DateTime` | First day of month; UI sends "202603" |
 | `DocumentNumber` | `string?` | From Document Control API |
-| `DocumentId` | `string?` | From Document Control API |
+| `DocumentId` | `int?` | From Document Control API |
 | `Details` | `ICollection<ExchangeRateDetail>` | Navigation property |
 
 ### ExchangeRateDetail

@@ -85,9 +85,8 @@ namespace GPCS_ExchangeRate.Infrastructure.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
 
-                    b.Property<string>("DocumentId")
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
+                    b.Property<int?>("DocumentId")
+                        .HasColumnType("int");
 
                     b.Property<string>("DocumentNumber")
                         .HasMaxLength(50)

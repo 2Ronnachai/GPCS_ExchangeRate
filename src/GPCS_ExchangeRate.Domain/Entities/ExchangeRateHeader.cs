@@ -14,7 +14,7 @@ public class ExchangeRateHeader : AuditableEntity
     public string? DocumentNumber { get; set; }
 
     /// <summary>รหัสอ้างอิงจาก Document Control API</summary>
-    public string? DocumentId { get; set; }
+    public int? DocumentId { get; set; }
 
     public ICollection<ExchangeRateDetail> Details { get; set; } = new List<ExchangeRateDetail>();
 }

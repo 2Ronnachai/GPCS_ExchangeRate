@@ -12,7 +12,7 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace GPCS_ExchangeRate.Infrastructure.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20260312054618_InitialCreate")]
+    [Migration("20260312055734_InitialCreate")]
     partial class InitialCreate
     {
         /// <inheritdoc />
@@ -88,9 +88,8 @@ namespace GPCS_ExchangeRate.Infrastructure.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
 
-                    b.Property<string>("DocumentId")
-                        .HasMaxLength(100)
-                        .HasColumnType("nvarchar(100)");
+                    b.Property<int?>("DocumentId")
+                        .HasColumnType("int");
 
                     b.Property<string>("DocumentNumber")
                         .HasMaxLength(50)

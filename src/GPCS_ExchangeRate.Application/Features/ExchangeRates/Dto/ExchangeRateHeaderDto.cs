@@ -8,7 +8,7 @@ public class ExchangeRateHeaderDto
     public string Period { get; set; } = string.Empty;
 
     public string? DocumentNumber { get; set; }
-    public string? DocumentId { get; set; }
+    public int? DocumentId { get; set; }
     public DateTime CreatedAt { get; set; }
     public string CreatedBy { get; set; } = string.Empty;
     public DateTime? UpdatedAt { get; set; }

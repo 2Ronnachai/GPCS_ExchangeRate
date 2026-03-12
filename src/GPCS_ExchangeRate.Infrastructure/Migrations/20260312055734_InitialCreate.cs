@@ -19,7 +19,7 @@ namespace GPCS_ExchangeRate.Infrastructure.Migrations
                         .Annotation("SqlServer:Identity", "1, 1"),
                     Period = table.Column<DateTime>(type: "datetime2", nullable: false),
                     DocumentNumber = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: true),
-                    DocumentId = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: true),
+                    DocumentId = table.Column<int>(type: "int", nullable: true),
                     CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
                     CreatedBy = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false),
                     UpdatedAt = table.Column<DateTime>(type: "datetime2", nullable: true),
