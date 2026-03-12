@@ -1,7 +1,7 @@
 namespace GPCS_ExchangeRate.Infrastructure.Data;
 
 /// <summary>
-/// Interface สำหรับดึง current user ใน request context
+/// Interface for resolving the current user from the request context.
 /// </summary>
 public interface ICurrentUserService
 {

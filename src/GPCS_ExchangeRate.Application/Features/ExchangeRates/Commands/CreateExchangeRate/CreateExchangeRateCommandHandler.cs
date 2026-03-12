@@ -21,7 +21,7 @@ public class CreateExchangeRateCommandHandler : IRequestHandler<CreateExchangeRa
         CreateExchangeRateCommand request,
         CancellationToken cancellationToken)
     {
-        // Parse "yyyyMM" → DateTime (วันแรกของเดือน)
+        // Parse "yyyyMM" string → DateTime (first day of the month)
         if (!TryParsePeriod(request.Period, out var periodDate))
             throw new ArgumentException($"Invalid period format '{request.Period}'. Expected format: yyyyMM (e.g. 202603)");
 
@@ -40,7 +40,7 @@ public class CreateExchangeRateCommandHandler : IRequestHandler<CreateExchangeRa
         await _unitOfWork.ExchangeRateHeaders.AddAsync(header);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-        // โหลด header พร้อม details เพื่อ map กลับ
+        // Reload header with details for mapping
         var result = await _unitOfWork.ExchangeRateHeaders.GetWithDetailsAsync(header.Id);
         return _mapper.Map<ExchangeRateHeaderDto>(result);
     }

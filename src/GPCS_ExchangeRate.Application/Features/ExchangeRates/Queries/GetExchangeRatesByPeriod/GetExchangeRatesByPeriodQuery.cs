@@ -5,7 +5,7 @@ namespace GPCS_ExchangeRate.Application.Features.ExchangeRates.Queries.GetExchan
 
 public class GetExchangeRatesByPeriodQuery : IRequest<ExchangeRateHeaderDto?>
 {
-    /// <summary>งวดในรูปแบบ "yyyyMM" เช่น "202603"</summary>
+    /// <summary>Billing period in "yyyyMM" format, e.g. "202603".</summary>
     public string Period { get; set; } = string.Empty;
 
     public GetExchangeRatesByPeriodQuery(string period) => Period = period;

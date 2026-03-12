@@ -18,7 +18,7 @@ public class ExchangeRatesController : ControllerBase
         _mediator = mediator;
     }
 
-    /// <summary>สร้าง Exchange Rate ใหม่</summary>
+    /// <summary>Create a new Exchange Rate document.</summary>
     [HttpPost]
     [ProducesResponseType(typeof(ExchangeRateHeaderDto), StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
@@ -28,7 +28,7 @@ public class ExchangeRatesController : ControllerBase
         return CreatedAtAction(nameof(GetById), new { id = result.Id }, result);
     }
 
-    /// <summary>ดึง Exchange Rate ตาม Id (พร้อม Details)</summary>
+    /// <summary>Get an Exchange Rate by ID, including its detail lines.</summary>
     [HttpGet("{id:int}")]
     [ProducesResponseType(typeof(ExchangeRateHeaderDto), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -38,7 +38,7 @@ public class ExchangeRatesController : ControllerBase
         return result is null ? NotFound() : Ok(result);
     }
 
-    /// <summary>ดึง Exchange Rate ตาม Period (yyyyMM เช่น 202603)</summary>
+    /// <summary>Get an Exchange Rate by period (yyyyMM format, e.g. 202603).</summary>
     [HttpGet]
     [ProducesResponseType(typeof(ExchangeRateHeaderDto), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]

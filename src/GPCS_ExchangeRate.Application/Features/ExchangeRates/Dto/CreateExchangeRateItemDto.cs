@@ -2,9 +2,9 @@ namespace GPCS_ExchangeRate.Application.Features.ExchangeRates.Dto;
 
 public class CreateExchangeRateItemDto
 {
-    /// <summary>รหัสสกุลเงิน เช่น USD, JPY, EUR</summary>
+    /// <summary>Currency code, e.g. USD, JPY, EUR.</summary>
     public string CurrencyCode { get; set; } = string.Empty;
 
-    /// <summary>อัตราแลกเปลี่ยน full precision</summary>
+    /// <summary>Exchange rate at full precision.</summary>
     public decimal Rate { get; set; }
 }

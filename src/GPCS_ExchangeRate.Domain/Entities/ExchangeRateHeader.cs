@@ -5,15 +5,15 @@ namespace GPCS_ExchangeRate.Domain.Entities;
 public class ExchangeRateHeader : AuditableEntity
 {
     /// <summary>
-    /// งวดของ Exchange Rate เก็บเป็นวันแรกของเดือน เช่น 2026-03-01
-    /// UI ส่งมาแบบ "202603" → parse เป็น DateTime ใน Application layer
+    /// Stores the first day of the billing month, e.g. 2026-03-01.
+    /// UI sends "202603" and the Application layer parses it to DateTime.
     /// </summary>
     public DateTime Period { get; set; }
 
-    /// <summary>เลขเอกสารจาก Document Control API</summary>
+    /// <summary>Document number assigned by the Document Control API.</summary>
     public string? DocumentNumber { get; set; }
 
-    /// <summary>รหัสอ้างอิงจาก Document Control API</summary>
+    /// <summary>Document ID assigned by the Document Control API.</summary>
     public int? DocumentId { get; set; }
 
     public ICollection<ExchangeRateDetail> Details { get; set; } = new List<ExchangeRateDetail>();

@@ -4,8 +4,8 @@ using Microsoft.AspNetCore.Http;
 namespace GPCS_ExchangeRate.Api.Services;
 
 /// <summary>
-/// Implementation ของ ICurrentUserService ที่ดึง user จาก HttpContext
-/// ปรับให้เข้ากับ Auth mechanism จริง (JWT claims ฯลฯ) ได้ภายหลัง
+/// Implementation of ICurrentUserService that resolves the user from HttpContext.
+/// Replace the resolution logic to match the actual auth mechanism (e.g. JWT claims).
 /// </summary>
 public class CurrentUserService : ICurrentUserService
 {

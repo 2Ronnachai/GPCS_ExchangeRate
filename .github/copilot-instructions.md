@@ -117,6 +117,9 @@ Features/
 - **Private fields:** `_camelCase`, e.g. `_unitOfWork`
 - **Async methods:** Always suffixed with `Async`
 
+### Comments & Documentation
+- **All comments and XML doc-comments (`///`) must be written in English only** — Thai is not allowed in source code comments.
+
 ### Error Handling
 - **Global Exception Middleware** (`ExceptionHandlingMiddleware`) handles all unhandled exceptions
 - Throw `ArgumentException` for validation errors → returns 400 BadRequest
