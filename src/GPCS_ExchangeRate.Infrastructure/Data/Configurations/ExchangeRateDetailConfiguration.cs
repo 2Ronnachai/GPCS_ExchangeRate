@@ -29,7 +29,6 @@ public class ExchangeRateDetailConfiguration : IEntityTypeConfiguration<Exchange
             .HasColumnType("decimal(18,4)");
 
         builder.Property(d => d.CreatedBy)
-            .IsRequired()
             .HasMaxLength(100);
 
         builder.Property(d => d.UpdatedBy)

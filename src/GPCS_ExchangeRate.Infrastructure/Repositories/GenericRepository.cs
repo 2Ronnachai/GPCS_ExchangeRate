@@ -6,16 +6,10 @@ using Microsoft.EntityFrameworkCore;
 
 namespace GPCS_ExchangeRate.Infrastructure.Repositories;
 
-public class GenericRepository<T> : IGenericRepository<T> where T : BaseEntity
+public class GenericRepository<T>(AppDbContext context) : IGenericRepository<T> where T : BaseEntity
 {
-    protected readonly AppDbContext _context;
-    protected readonly DbSet<T> _dbSet;
-
-    public GenericRepository(AppDbContext context)
-    {
-        _context = context;
-        _dbSet = context.Set<T>();
-    }
+    protected readonly AppDbContext _context = context;
+    protected readonly DbSet<T> _dbSet = context.Set<T>();
 
     public async Task<T?> GetByIdAsync(int id)
         => await _dbSet.FindAsync(id);

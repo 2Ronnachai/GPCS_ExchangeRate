@@ -5,13 +5,9 @@ using Microsoft.EntityFrameworkCore;
 
 namespace GPCS_ExchangeRate.Infrastructure.Repositories;
 
-public class ExchangeRateHeaderRepository
-    : GenericRepository<ExchangeRateHeader>, IExchangeRateHeaderRepository
+public class ExchangeRateHeaderRepository(AppDbContext context)
+        : GenericRepository<ExchangeRateHeader>(context), IExchangeRateHeaderRepository
 {
-    public ExchangeRateHeaderRepository(AppDbContext context) : base(context)
-    {
-    }
-
     public async Task<ExchangeRateHeader?> GetByPeriodAsync(DateTime period)
         => await _dbSet
             .Include(h => h.Details)

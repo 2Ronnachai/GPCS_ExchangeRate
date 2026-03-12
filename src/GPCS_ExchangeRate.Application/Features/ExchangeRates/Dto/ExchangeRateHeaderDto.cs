@@ -13,5 +13,5 @@ public class ExchangeRateHeaderDto
     public string CreatedBy { get; set; } = string.Empty;
     public DateTime? UpdatedAt { get; set; }
     public string? UpdatedBy { get; set; }
-    public List<ExchangeRateDetailDto> Details { get; set; } = new();
+    public List<ExchangeRateDetailDto> Details { get; set; } = [];
 }

@@ -1,32 +1,19 @@
-using GPCS_ExchangeRate.Api.Middleware;
-using GPCS_ExchangeRate.Api.Services;
-using GPCS_ExchangeRate.Application.Common.Mappings;
-using GPCS_ExchangeRate.Domain.Interfaces;
-using GPCS_ExchangeRate.Infrastructure.Data;
-using GPCS_ExchangeRate.Infrastructure.UnitOfWork;
-using Microsoft.EntityFrameworkCore;
+using GPCS_ExchangeRate.Api.Handlers;
+using GPCS_ExchangeRate.Application;
+using GPCS_ExchangeRate.Infrastructure;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// --- DbContext ---
-builder.Services.AddDbContext<AppDbContext>(options =>
-    options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+// --- Application (MediatR, AutoMapper) ---
+builder.Services.AddApplication();
 
-// --- Current User ---
+// --- Infrastructure (EF Core, Repositories, UnitOfWork, Services) ---
 builder.Services.AddHttpContextAccessor();
-builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
+builder.Services.AddInfrastructure(builder.Configuration);
 
-// --- Unit of Work ---
-builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
-
-// --- MediatR ---
-builder.Services.AddMediatR(cfg =>
-    cfg.RegisterServicesFromAssembly(
-        typeof(GPCS_ExchangeRate.Application.Features.ExchangeRates.Commands
-            .CreateExchangeRate.CreateExchangeRateCommand).Assembly));
-
-// --- AutoMapper ---
-builder.Services.AddAutoMapper(typeof(ExchangeRateProfile).Assembly);
+// --- Exception Handling ---
+builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
+builder.Services.AddProblemDetails();
 
 // --- Controllers & Swagger ---
 builder.Services.AddControllers();
@@ -39,7 +26,7 @@ builder.Services.AddSwaggerGen(c =>
 var app = builder.Build();
 
 // --- Middleware ---
-app.UseMiddleware<ExceptionHandlingMiddleware>();
+app.UseExceptionHandler();
 
 if (app.Environment.IsDevelopment())
 {

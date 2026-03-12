@@ -6,16 +6,11 @@ using MediatR;
 
 namespace GPCS_ExchangeRate.Application.Features.ExchangeRates.Commands.CreateExchangeRate;
 
-public class CreateExchangeRateCommandHandler : IRequestHandler<CreateExchangeRateCommand, ExchangeRateHeaderDto>
+public class CreateExchangeRateCommandHandler(IUnitOfWork unitOfWork, IMapper mapper) : 
+    IRequestHandler<CreateExchangeRateCommand, ExchangeRateHeaderDto>
 {
-    private readonly IUnitOfWork _unitOfWork;
-    private readonly IMapper _mapper;
-
-    public CreateExchangeRateCommandHandler(IUnitOfWork unitOfWork, IMapper mapper)
-    {
-        _unitOfWork = unitOfWork;
-        _mapper = mapper;
-    }
+    private readonly IUnitOfWork _unitOfWork = unitOfWork;
+    private readonly IMapper _mapper = mapper;
 
     public async Task<ExchangeRateHeaderDto> Handle(
         CreateExchangeRateCommand request,

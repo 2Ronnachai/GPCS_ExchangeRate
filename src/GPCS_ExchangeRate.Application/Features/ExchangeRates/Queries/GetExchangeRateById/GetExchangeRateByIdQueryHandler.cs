@@ -5,16 +5,11 @@ using MediatR;
 
 namespace GPCS_ExchangeRate.Application.Features.ExchangeRates.Queries.GetExchangeRateById;
 
-public class GetExchangeRateByIdQueryHandler : IRequestHandler<GetExchangeRateByIdQuery, ExchangeRateHeaderDto?>
+public class GetExchangeRateByIdQueryHandler(IUnitOfWork unitOfWork, IMapper mapper) : 
+    IRequestHandler<GetExchangeRateByIdQuery, ExchangeRateHeaderDto?>
 {
-    private readonly IUnitOfWork _unitOfWork;
-    private readonly IMapper _mapper;
-
-    public GetExchangeRateByIdQueryHandler(IUnitOfWork unitOfWork, IMapper mapper)
-    {
-        _unitOfWork = unitOfWork;
-        _mapper = mapper;
-    }
+    private readonly IUnitOfWork _unitOfWork = unitOfWork;
+    private readonly IMapper _mapper = mapper;
 
     public async Task<ExchangeRateHeaderDto?> Handle(
         GetExchangeRateByIdQuery request,

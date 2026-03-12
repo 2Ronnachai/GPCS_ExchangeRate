@@ -22,9 +22,7 @@ artifacts/
 *.user
 *.suo
 .vs/
-.vscode/settings.json
-.vscode/launch.json
-.vscode/tasks.json
+.vscode/
 
 # Backup files
 *.bak
@@ -39,16 +37,17 @@ artifacts/
 ## ===========================
 ## Entity Framework
 ## ===========================
-# Keep Migrations folder but ignore the snapshot-only backup
-# (the actual migrations are committed intentionally)
+# Keep Migrations folder — actual migration files are committed intentionally.
+# Only the snapshot is auto-regenerated and does not need separate tracking.
 
 ## ===========================
 ## ASP.NET Core
 ## ===========================
-# User secrets
+# Environment-specific app settings (may contain secrets)
 **/appsettings.Development.json
-**/secrets.json
 **/appsettings.Local.json
+**/appsettings.*.json
+**/secrets.json
 
 # Published output
 publish/

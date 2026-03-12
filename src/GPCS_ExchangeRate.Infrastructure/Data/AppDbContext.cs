@@ -1,19 +1,17 @@
-using GPCS_ExchangeRate.Domain.Common;
+﻿using GPCS_ExchangeRate.Domain.Common;
+using GPCS_ExchangeRate.Domain.Common.Interfaces;
 using GPCS_ExchangeRate.Domain.Entities;
-using GPCS_ExchangeRate.Infrastructure.Data.Configurations;
+using GPCS_ExchangeRate.Domain.Interfaces;
 using Microsoft.EntityFrameworkCore;
 
 namespace GPCS_ExchangeRate.Infrastructure.Data;
 
-public class AppDbContext : DbContext
+public class AppDbContext(DbContextOptions<AppDbContext> options,
+    ICurrentUserService currentUserService,
+    IDateTimeService dateTimeService) : DbContext(options)
 {
-    private readonly ICurrentUserService _currentUserService;
-
-    public AppDbContext(DbContextOptions<AppDbContext> options, ICurrentUserService currentUserService)
-        : base(options)
-    {
-        _currentUserService = currentUserService;
-    }
+    private readonly IDateTimeService _dateTimeService = dateTimeService;
+    private readonly ICurrentUserService _currentUserService = currentUserService;
 
     public DbSet<ExchangeRateHeader> ExchangeRateHeaders => Set<ExchangeRateHeader>();
     public DbSet<ExchangeRateDetail> ExchangeRateDetails => Set<ExchangeRateDetail>();
@@ -24,27 +22,44 @@ public class AppDbContext : DbContext
         modelBuilder.ApplyConfigurationsFromAssembly(typeof(AppDbContext).Assembly);
     }
 
-    public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
+    // ── SaveChanges overrides ─────────────────────────────────────────────────
+    public override int SaveChanges()
     {
-        var now = DateTime.UtcNow;
-        var currentUser = _currentUserService.UserId ?? "system";
+        ApplyAuditInformation();
+        return base.SaveChanges();
+    }
 
-        foreach (var entry in ChangeTracker.Entries<AuditableEntity>())
+    public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
+    {
+        ApplyAuditInformation();
+        return base.SaveChangesAsync(cancellationToken);
+    }
+
+    private void ApplyAuditInformation()
+    {
+        var currentUser = _currentUserService.GetUserName();
+        var now = _dateTimeService.Now; // Bangkok time (UTC+7)
+
+        foreach (var entry in ChangeTracker.Entries<IAuditableEntity>())
         {
             switch (entry.State)
             {
                 case EntityState.Added:
-                    entry.Entity.CreatedAt = now;
                     entry.Entity.CreatedBy = currentUser;
+                    entry.Entity.CreatedAt = now;
+                    // Clear UpdatedBy/UpdatedAt on new entities
+                    entry.Entity.UpdatedBy = null;
+                    entry.Entity.UpdatedAt = null;
                     break;
 
                 case EntityState.Modified:
-                    entry.Entity.UpdatedAt = now;
                     entry.Entity.UpdatedBy = currentUser;
+                    entry.Entity.UpdatedAt = now;
+                    // Prevent overwriting creation audit fields
+                    entry.Property(nameof(IAuditableEntity.CreatedBy)).IsModified = false;
+                    entry.Property(nameof(IAuditableEntity.CreatedAt)).IsModified = false;
                     break;
             }
         }
-
-        return await base.SaveChangesAsync(cancellationToken);
     }
 }

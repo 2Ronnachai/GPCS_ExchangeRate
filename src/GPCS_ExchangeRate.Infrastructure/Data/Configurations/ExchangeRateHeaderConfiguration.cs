@@ -25,7 +25,6 @@ public class ExchangeRateHeaderConfiguration : IEntityTypeConfiguration<Exchange
         builder.Property(h => h.DocumentId);
 
         builder.Property(h => h.CreatedBy)
-            .IsRequired()
             .HasMaxLength(100);
 
         builder.Property(h => h.UpdatedBy)
