@@ -1,7 +1,9 @@
-﻿using GPCS_ExchangeRate.Application.Dtos.Documents.Request;
+﻿using GPCS_ExchangeRate.Application.Common.Helpers;
+using GPCS_ExchangeRate.Application.Dtos.Documents.Request;
 using GPCS_ExchangeRate.Application.Dtos.Documents.Responses;
 using GPCS_ExchangeRate.Application.Interfaces.Configurations;
 using GPCS_ExchangeRate.Application.Interfaces.External;
+using GPCS_ExchangeRate.Domain.Entities;
 using GPCS_ExchangeRate.Domain.Interfaces;
 using MediatR;
 using Microsoft.Extensions.Logging;
@@ -29,100 +31,152 @@ namespace GPCS_ExchangeRate.Application.Features.ExchangeRates.Commands.SubmitEx
                 ?? throw new KeyNotFoundException($"ExchangeRateHeader {request.Id} not found.");
 
             if (header.DocumentId == null)
-            {
-                // Case 1: First-time submit — Create external document, persist DocumentId, then submit.
                 await CreateDocumentAndSubmitAsync(header, request, cancellationToken);
-            }
             else
-            {
-                // Case 2: Re-submit — Update external document, then submit.
                 await UpdateDocumentAndSubmitAsync(header, request, cancellationToken);
-            }
         }
 
         private async Task CreateDocumentAndSubmitAsync(
-            Domain.Entities.ExchangeRateHeader header,
+            ExchangeRateHeader header,
             SubmitExchangeRateCommand request,
             CancellationToken cancellationToken)
         {
-            var document = new DocumentDto();
+            var periodDate = PeriodParser.Parse(request.Period);
+            DocumentDto? document = null;
+
             await _unitOfWork.BeginTransactionAsync(cancellationToken);
             try
             {
-                var createDocumentRequest = new CreateDocumentRequest
-                {
-                    Title = request.Title,
-                    DocumentType = _workflowConfiguration.DocumentType,
-                    EffectiveDate = request.EffectiveDate ?? _dateTimeService.Now,
-                    IsUrgent = request.IsUrgent,
-                    Remarks = request.Remarks,
-                    Comment = request.Comment,
-                    WorkflowCreateRequest = new CreateWorkflowInstanceRequest
-                    {
-                        RouteId = _workflowConfiguration.RouteId,
-                        NIdRequester = request.UserName!,
-                        OrganizationalUnitIds = []
-                    }
-                };
-
-                document = await _documentService.CreateAsync(createDocumentRequest, cancellationToken)
+                document = await _documentService.CreateAsync(
+                    BuildCreateDocumentRequest(request), cancellationToken)
                     ?? throw new InvalidOperationException("External Document API returned null after CreateAsync.");
 
                 header.DocumentId = document.Id;
                 header.DocumentNumber = document.DocumentNo;
+                UpdateExchangeRateData(header, periodDate, request);
 
                 await _unitOfWork.SaveChangesAsync(cancellationToken);
                 await _unitOfWork.CommitTransactionAsync(cancellationToken);
+
+                _logger.LogInformation(
+                    "Document {DocumentId} created and DB saved for ExchangeRateHeader {HeaderId}.",
+                    document.Id, header.Id);
             }
             catch
             {
                 await _unitOfWork.RollbackTransactionAsync(cancellationToken);
+
                 if (document?.Id > 0)
-                {
-                    try
-                    {
-                        await _documentService.DeleteAsync(document.Id, cancellationToken);
-                    }
-                    catch
-                    {
-                        _logger.LogError("Failed to delete document with ID {DocumentId} during compensation.", document.Id);
-                    }
-                }
+                    await TryDeleteDocumentAsync(document.Id, cancellationToken);
+
                 throw;
             }
 
-            // Submit the newly created document
+            await SubmitDocumentAsync(document.Id, request.Comment, cancellationToken);
+        }
+
+        private async Task UpdateDocumentAndSubmitAsync(
+            ExchangeRateHeader header,
+            SubmitExchangeRateCommand request,
+            CancellationToken cancellationToken)
+        {
+            var periodDate = PeriodParser.Parse(request.Period);
+
+            await _unitOfWork.BeginTransactionAsync(cancellationToken);
             try
             {
-                await _documentService.SubmitAsync(
+                await _documentService.UpdateAsync(
                     header.DocumentId!.Value,
-                    new NotRequireComment { Comment = request.Comment },
+                    BuildUpdateDocumentRequest(request),
                     cancellationToken);
+
+                UpdateExchangeRateData(header, periodDate, request);
+
+                await _unitOfWork.SaveChangesAsync(cancellationToken);
+                await _unitOfWork.CommitTransactionAsync(cancellationToken);
+
+                _logger.LogInformation(
+                    "Document {DocumentId} updated and DB saved for ExchangeRateHeader {HeaderId}.",
+                    header.DocumentId.Value, header.Id);
             }
             catch
             {
-                _logger.LogError("SubmitAsync failed for document {DocumentId}. Attempting RollbackSubmitAsync.", header.DocumentId);
-                try
-                {
-                    await _documentService.RollbackSubmitAsync(
-                        header.DocumentId!.Value,
-                        new RollbackRequest { Reason = "SubmitAsync failed during first-time submit." },
-                        cancellationToken);
-                }
-                catch
-                {
-                    _logger.LogError("RollbackSubmitAsync also failed for document {DocumentId}.", header.DocumentId);
-                }
+                await _unitOfWork.RollbackTransactionAsync(cancellationToken);
+                throw;
+            }
+
+            await SubmitDocumentAsync(header.DocumentId!.Value, request.Comment, cancellationToken);
+        }
+
+        private async Task SubmitDocumentAsync(int documentId, string? comment, CancellationToken cancellationToken)
+        {
+            try
+            {
+                await _documentService.SubmitAsync(
+                    documentId,
+                    new NotRequireComment { Comment = comment },
+                    cancellationToken);
+
+                _logger.LogInformation("Document {DocumentId} submitted successfully.", documentId);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex,
+                    "SubmitAsync failed for document {DocumentId}. DB is already saved. User can retry to submit.",
+                    documentId);
                 throw;
             }
         }
 
-        private async Task UpdateDocumentAndSubmitAsync(
-            Domain.Entities.ExchangeRateHeader header,
-            SubmitExchangeRateCommand request,
-            CancellationToken cancellationToken)
+        private async Task TryDeleteDocumentAsync(int documentId, CancellationToken cancellationToken)
         {
-            var updateDocumentRequest = new UpdateDocumentRequest
+            try
+            {
+                await _documentService.DeleteAsync(documentId, cancellationToken);
+                _logger.LogInformation("Compensation: Deleted document {DocumentId}.", documentId);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex,
+                    "Compensation failed: Unable to delete document {DocumentId}. Manual cleanup required.",
+                    documentId);
+            }
+        }
+
+        private static void UpdateExchangeRateData(
+            ExchangeRateHeader header,
+            DateTime periodDate,
+            SubmitExchangeRateCommand request)
+        {
+            header.Period = periodDate;
+            header.Details = request.Items.Select(item => new ExchangeRateDetail
+            {
+                CurrencyCode = item.CurrencyCode.ToUpperInvariant(),
+                Rate = item.Rate,
+                Rate2Digit = Math.Round(item.Rate, 2, MidpointRounding.AwayFromZero),
+                Rate4Digit = Math.Round(item.Rate, 4, MidpointRounding.AwayFromZero),
+            }).ToList();
+        }
+
+        private CreateDocumentRequest BuildCreateDocumentRequest(SubmitExchangeRateCommand request) =>
+            new()
+            {
+                Title = request.Title,
+                DocumentType = _workflowConfiguration.DocumentType,
+                EffectiveDate = request.EffectiveDate ?? _dateTimeService.Now,
+                IsUrgent = request.IsUrgent,
+                Remarks = request.Remarks,
+                Comment = request.Comment,
+                WorkflowCreateRequest = new CreateWorkflowInstanceRequest
+                {
+                    RouteId = _workflowConfiguration.RouteId,
+                    NIdRequester = request.UserName!,
+                    OrganizationalUnitIds = []
+                }
+            };
+
+        private UpdateDocumentRequest BuildUpdateDocumentRequest(SubmitExchangeRateCommand request) =>
+            new()
             {
                 Title = request.Title,
                 EffectiveDate = request.EffectiveDate ?? _dateTimeService.Now,
@@ -132,40 +186,10 @@ namespace GPCS_ExchangeRate.Application.Features.ExchangeRates.Commands.SubmitEx
                 WorkflowUpdateRequest = new UpdateWorkflowInstanceRequest
                 {
                     RouteId = _workflowConfiguration.RouteId,
-                    NIdRequester = request.UserName ?? "system",
+                    NIdRequester = request.UserName!,
                     OrganizationalUnitIds = []
                 }
             };
 
-            await _documentService.UpdateAsync(
-                header.DocumentId!.Value,
-                updateDocumentRequest,
-                cancellationToken);
-
-            // Submit the updated document
-            try
-            {
-                await _documentService.SubmitAsync(
-                    header.DocumentId.Value,
-                    new NotRequireComment { Comment = request.Comment },
-                    cancellationToken);
-            }
-            catch
-            {
-                _logger.LogError("SubmitAsync failed for document {DocumentId}. Attempting RollbackSubmitAsync.", header.DocumentId);
-                try
-                {
-                    await _documentService.RollbackSubmitAsync(
-                        header.DocumentId.Value,
-                        new RollbackRequest { Reason = "SubmitAsync failed during re-submit." },
-                        cancellationToken);
-                }
-                catch
-                {
-                    _logger.LogError("RollbackSubmitAsync also failed for document {DocumentId}.", header.DocumentId);
-                }
-                throw;
-            }
-        }
     }
 }
