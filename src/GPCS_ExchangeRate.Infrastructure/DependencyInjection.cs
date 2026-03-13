@@ -1,4 +1,5 @@
-﻿using GPCS_ExchangeRate.Application.Interfaces.External;
+﻿using GPCS_ExchangeRate.Application.Interfaces.Configurations;
+using GPCS_ExchangeRate.Application.Interfaces.External;
 using GPCS_ExchangeRate.Domain.Common.Interfaces;
 using GPCS_ExchangeRate.Domain.Interfaces;
 using GPCS_ExchangeRate.Infrastructure.Configurations;
@@ -22,6 +23,9 @@ namespace GPCS_ExchangeRate.Infrastructure
             // ── Configure Settings ────────────────────────────────────────────────
             services.Configure<DocumentApiSettings>(
                 configuration.GetSection("ExternalApis:DocumentApi"));
+
+            services.Configure<WorkflowConfiguration>(
+                configuration.GetSection("WorkflowConfiguration"));
 
             // ── Database ──────────────────────────────────────────────────────────
             services.AddDbContext<AppDbContext>(options =>
@@ -53,6 +57,9 @@ namespace GPCS_ExchangeRate.Infrastructure
                     UseDefaultCredentials = true
                 };
             });
+
+            services.AddSingleton<IWorkflowConfiguration>(sp =>
+                sp.GetRequiredService<IOptions<WorkflowConfiguration>>().Value);
 
             return services;
         }

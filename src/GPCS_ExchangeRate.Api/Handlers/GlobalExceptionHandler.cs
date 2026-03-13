@@ -36,16 +36,27 @@ internal sealed class GlobalExceptionHandler(ILogger<GlobalExceptionHandler> log
         return true;
     }
 
-    // ?? Exception ? HTTP mapping ??????????????????????????????????????????????
+    // Exception HTTP mapping
     private static (HttpStatusCode status, string message, string errorCode, Dictionary<string, string[]>? errors)
         MapException(Exception ex) => ex switch
     {
-        NotFoundException e =>
-            (HttpStatusCode.NotFound, e.Message, "NOT_FOUND", null),
+        FluentValidation.ValidationException fve =>
+            (HttpStatusCode.BadRequest,
+             "One or more validation errors occurred.",
+             "VALIDATION_FAILED",
+             fve.Errors
+                .GroupBy(e => e.PropertyName)
+                .ToDictionary(
+                    g => g.Key,
+                    g => g.Select(e => e.ErrorMessage).ToArray()
+                )),
 
         ValidationException ve =>
             (HttpStatusCode.UnprocessableEntity, ve.Message, "VALIDATION_FAILED",
              ve.Errors.ToDictionary(k => k.Key, v => v.Value)),
+
+        NotFoundException e =>
+            (HttpStatusCode.NotFound, e.Message, "NOT_FOUND", null),
 
         ForbiddenException e =>
             (HttpStatusCode.Forbidden, e.Message, "FORBIDDEN", null),
@@ -69,7 +80,7 @@ internal sealed class GlobalExceptionHandler(ILogger<GlobalExceptionHandler> log
             (HttpStatusCode.InternalServerError, "An unexpected error occurred.", "INTERNAL_ERROR", null)
     };
 
-    // ?? Logging ???????????????????????????????????????????????????????????????
+    // Logging
     private void LogException(Exception ex, HttpStatusCode statusCode)
     {
         if (statusCode >= HttpStatusCode.InternalServerError)

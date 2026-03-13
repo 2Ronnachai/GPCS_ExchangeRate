@@ -1,54 +1,110 @@
 using AutoMapper;
+using GPCS_ExchangeRate.Application.Common.Helpers;
+using GPCS_ExchangeRate.Application.Dtos.Documents.Request;
+using GPCS_ExchangeRate.Application.Dtos.Documents.Responses;
 using GPCS_ExchangeRate.Application.Features.ExchangeRates.Dto;
+using GPCS_ExchangeRate.Application.Interfaces.Configurations;
+using GPCS_ExchangeRate.Application.Interfaces.External;
 using GPCS_ExchangeRate.Domain.Entities;
 using GPCS_ExchangeRate.Domain.Interfaces;
 using MediatR;
+using Microsoft.Extensions.Logging;
 
 namespace GPCS_ExchangeRate.Application.Features.ExchangeRates.Commands.CreateExchangeRate;
 
-public class CreateExchangeRateCommandHandler(IUnitOfWork unitOfWork, IMapper mapper) : 
+public class CreateExchangeRateCommandHandler(
+    IUnitOfWork unitOfWork,
+    IMapper mapper,
+    IDateTimeService dateTimeService,
+    IDocumentService documentService,
+    ILogger<CreateExchangeRateCommandHandler> logger,
+    IWorkflowConfiguration workflowConfiguration) :
     IRequestHandler<CreateExchangeRateCommand, ExchangeRateHeaderDto>
 {
     private readonly IUnitOfWork _unitOfWork = unitOfWork;
     private readonly IMapper _mapper = mapper;
+    private readonly IDateTimeService _dateTimeService = dateTimeService;
+    private readonly IDocumentService _documentService = documentService;
+    private readonly ILogger<CreateExchangeRateCommandHandler> _logger = logger;
+    private readonly IWorkflowConfiguration _workflowConfiguration = workflowConfiguration;
 
     public async Task<ExchangeRateHeaderDto> Handle(
         CreateExchangeRateCommand request,
         CancellationToken cancellationToken)
     {
-        // Parse "yyyyMM" string → DateTime (first day of the month)
-        if (!TryParsePeriod(request.Period, out var periodDate))
-            throw new ArgumentException($"Invalid period format '{request.Period}'. Expected format: yyyyMM (e.g. 202603)");
+        var periodDate = PeriodParser.Parse(request.Period);
 
-        var header = new ExchangeRateHeader
+        var isDuplicate = await _unitOfWork.ExchangeRateHeaders
+            .AnyAsync(h => h.Period == periodDate, cancellationToken);
+
+        if (isDuplicate)
+            throw new ArgumentException($"Exchange rate for period '{request.Period}' already exists.");
+
+        await _unitOfWork.BeginTransactionAsync(cancellationToken);
+        var document = new DocumentDto();
+        try
         {
-            Period = periodDate,
-            Details = request.Items.Select(item => new ExchangeRateDetail
+            var createDocumentRequest = new CreateDocumentRequest
             {
-                CurrencyCode = item.CurrencyCode.ToUpperInvariant(),
-                Rate = item.Rate,
-                Rate2Digit = Math.Round(item.Rate, 2, MidpointRounding.AwayFromZero),
-                Rate4Digit = Math.Round(item.Rate, 4, MidpointRounding.AwayFromZero),
-            }).ToList()
-        };
+                Title = request.Title,
+                DocumentType = _workflowConfiguration.DocumentType,
+                EffectiveDate = request.EffectiveDate ?? _dateTimeService.Now,
+                IsUrgent = request.IsUrgent,
+                Remarks = request.Remarks ?? string.Empty,
+                Comment = request.Comment,
+                WorkflowCreateRequest = new CreateWorkflowInstanceRequest
+                {
+                    RouteId = _workflowConfiguration.RouteId,
+                    NIdRequester = request.UserName!,
+                    OrganizationalUnitIds = []
+                }
+            };
 
-        await _unitOfWork.ExchangeRateHeaders.AddAsync(header);
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+            document = await _documentService.CreateAsync(createDocumentRequest, cancellationToken);
 
-        // Reload header with details for mapping
-        var result = await _unitOfWork.ExchangeRateHeaders.GetWithDetailsAsync(header.Id);
-        return _mapper.Map<ExchangeRateHeaderDto>(result);
-    }
+            if (document == null)
+                throw new Exception("Failed to create document.");
 
-    private static bool TryParsePeriod(string period, out DateTime result)
-    {
-        result = default;
-        if (period.Length != 6) return false;
-        if (!int.TryParse(period[..4], out var year)) return false;
-        if (!int.TryParse(period[4..], out var month)) return false;
-        if (month < 1 || month > 12) return false;
+            var header = new ExchangeRateHeader
+            {
+                Period = periodDate,
+                DocumentId = document.Id,
+                DocumentNumber = document.DocumentNo,
+                Details = request.Items.Select(item => new ExchangeRateDetail
+                {
+                    CurrencyCode = item.CurrencyCode.ToUpperInvariant(),
+                    Rate = item.Rate,
+                    Rate2Digit = Math.Round(item.Rate, 2, MidpointRounding.AwayFromZero),
+                    Rate4Digit = Math.Round(item.Rate, 4, MidpointRounding.AwayFromZero),
+                }).ToList()
+            };
 
-        result = new DateTime(year, month, 1, 0, 0, 0, DateTimeKind.Utc);
-        return true;
+            await _unitOfWork.ExchangeRateHeaders.AddAsync(header);
+
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+            await _unitOfWork.CommitTransactionAsync(cancellationToken);
+
+            var result = await _unitOfWork.ExchangeRateHeaders.GetWithDetailsAsync(header.Id);
+
+            return _mapper.Map<ExchangeRateHeaderDto>(result);
+        }
+        catch
+        {
+            await _unitOfWork.RollbackTransactionAsync(cancellationToken);
+            // Compensation
+            if (document != null)
+            {
+                try
+                {
+                    await _documentService.DeleteAsync(document.Id, cancellationToken);
+                }
+                catch
+                {
+                    _logger.LogError("Failed to delete document with ID {DocumentId} during compensation.", document.Id);
+                }
+            }
+            throw;
+        }
     }
 }
