@@ -11,6 +11,9 @@ namespace GPCS_ExchangeRate.Api.Controllers;
 [Route("api/[controller]")]
 public abstract class ApiControllerBase : ControllerBase
 {
+    protected IActionResult OkResponse(string message = "")
+        => Ok(ApiResponse.Ok(message));
+
     protected IActionResult OkResponse<T>(T data, string message = "")
         => Ok(ApiResponse<T>.Ok(data, message));
 

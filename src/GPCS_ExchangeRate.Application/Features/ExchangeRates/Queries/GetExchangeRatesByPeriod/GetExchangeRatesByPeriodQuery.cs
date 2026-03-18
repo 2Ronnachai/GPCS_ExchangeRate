@@ -3,7 +3,7 @@ using MediatR;
 
 namespace GPCS_ExchangeRate.Application.Features.ExchangeRates.Queries.GetExchangeRatesByPeriod;
 
-public class GetExchangeRatesByPeriodQuery(string period) : IRequest<ExchangeRateHeaderDto?>
+public class GetExchangeRatesByPeriodQuery(string period) : IRequest<ExchangeRateHeaderDetailDto?>
 {
     /// <summary>Billing period in "yyyyMM" format, e.g. "202603".</summary>
     public string Period { get; set; } = period;

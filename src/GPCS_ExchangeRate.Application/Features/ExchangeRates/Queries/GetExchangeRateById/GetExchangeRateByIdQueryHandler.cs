@@ -6,16 +6,16 @@ using MediatR;
 namespace GPCS_ExchangeRate.Application.Features.ExchangeRates.Queries.GetExchangeRateById;
 
 public class GetExchangeRateByIdQueryHandler(IUnitOfWork unitOfWork, IMapper mapper) : 
-    IRequestHandler<GetExchangeRateByIdQuery, ExchangeRateHeaderDto?>
+    IRequestHandler<GetExchangeRateByIdQuery, ExchangeRateHeaderDetailDto?>
 {
     private readonly IUnitOfWork _unitOfWork = unitOfWork;
     private readonly IMapper _mapper = mapper;
 
-    public async Task<ExchangeRateHeaderDto?> Handle(
+    public async Task<ExchangeRateHeaderDetailDto?> Handle(
         GetExchangeRateByIdQuery request,
         CancellationToken cancellationToken)
     {
         var header = await _unitOfWork.ExchangeRateHeaders.GetWithDetailsAsync(request.Id);
-        return header is null ? null : _mapper.Map<ExchangeRateHeaderDto>(header);
+        return header is null ? null : _mapper.Map<ExchangeRateHeaderDetailDto>(header);
     }
 }

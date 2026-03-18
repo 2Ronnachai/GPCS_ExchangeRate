@@ -9,11 +9,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
 
-namespace GPCS_ExchangeRate.Infrastructure.Migrations
+namespace GPCS_ExchangeRate.Infrastructure.Data.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20260312055935_InitialCreate")]
-    partial class InitialCreate
+    [Migration("20260316090531_ReviseExchangeRateHeader_AddProperties")]
+    partial class ReviseExchangeRateHeader_AddProperties
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -37,7 +37,6 @@ namespace GPCS_ExchangeRate.Infrastructure.Migrations
                         .HasColumnType("datetime2");
 
                     b.Property<string>("CreatedBy")
-                        .IsRequired()
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
 
@@ -82,11 +81,13 @@ namespace GPCS_ExchangeRate.Infrastructure.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
+                    b.Property<DateTime?>("CompletedAt")
+                        .HasColumnType("datetime2");
+
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("datetime2");
 
                     b.Property<string>("CreatedBy")
-                        .IsRequired()
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
 
@@ -96,6 +97,9 @@ namespace GPCS_ExchangeRate.Infrastructure.Migrations
                     b.Property<string>("DocumentNumber")
                         .HasMaxLength(50)
                         .HasColumnType("nvarchar(50)");
+
+                    b.Property<string>("DocumentStatus")
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<DateTime>("Period")
                         .HasColumnType("datetime2");

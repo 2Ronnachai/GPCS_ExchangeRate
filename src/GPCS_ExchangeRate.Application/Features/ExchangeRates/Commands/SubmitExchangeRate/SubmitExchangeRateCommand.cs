@@ -3,10 +3,8 @@ using MediatR;
 
 namespace GPCS_ExchangeRate.Application.Features.ExchangeRates.Commands.SubmitExchangeRate;
 
-public class SubmitExchangeRateCommand : IRequest
+public class SubmitExchangeRateCommand : IRequest<ExchangeRateHeaderDetailDto>
 {
-    public SubmitExchangeRateCommand(string? userName) => UserName = userName;
-
     public string? UserName { get; set; }
 
     public int Id { get; set; }

@@ -27,6 +27,18 @@ namespace GPCS_ExchangeRate.Infrastructure
             services.Configure<WorkflowConfiguration>(
                 configuration.GetSection("WorkflowConfiguration"));
 
+            services.Configure<MockUserOptions>(
+                configuration.GetSection(MockUserOptions.SectionName));
+
+            var mockOptions = configuration
+                .GetSection(MockUserOptions.SectionName)
+                .Get<MockUserOptions>();
+
+            if(mockOptions?.Enabled == true)
+            {
+                services.AddScoped<IUserAccountService, MockUserAccountService>();
+            }
+
             // ── Database ──────────────────────────────────────────────────────────
             services.AddDbContext<AppDbContext>(options =>
                 options.UseSqlServer(

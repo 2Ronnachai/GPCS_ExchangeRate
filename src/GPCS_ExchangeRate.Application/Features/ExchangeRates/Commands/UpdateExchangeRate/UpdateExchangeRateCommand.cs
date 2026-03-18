@@ -3,7 +3,7 @@ using MediatR;
 
 namespace GPCS_ExchangeRate.Application.Features.ExchangeRates.Commands.UpdateExchangeRate
 {
-    public class UpdateExchangeRateCommand(int id, string? userName) : IRequest<ExchangeRateHeaderDto>
+    public class UpdateExchangeRateCommand(int id, string? userName) : IRequest<ExchangeRateHeaderDetailDto>
     {
         public int Id { get; set; } = id;
 

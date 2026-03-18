@@ -8,9 +8,16 @@ public class ExchangeRateProfile : Profile
 {
     public ExchangeRateProfile()
     {
-        CreateMap<ExchangeRateHeader, ExchangeRateHeaderDto>()
+        CreateMap<ExchangeRateHeader, ExchangeRateHeaderDetailDto>()
             .ForMember(dest => dest.Period, opt => opt.MapFrom(src => src.Period.ToString("yyyyMM")));
 
         CreateMap<ExchangeRateDetail, ExchangeRateDetailDto>();
+
+        CreateMap<ExchangeRateHeader, ExchangeRateHeaderDeltaDto>()
+            .ForMember(dest => dest.Period, opt => opt.MapFrom(src => src.Period.ToString("yyyyMM")));
+
+        CreateMap<ExchangeRateDetail, ExchangeRateDetailDeltaDto>()
+            .ForMember(dest => dest.Delta, opt => opt.Ignore())
+            .ForMember(dest => dest.DeltaPercentage, opt => opt.Ignore());
     }
 }

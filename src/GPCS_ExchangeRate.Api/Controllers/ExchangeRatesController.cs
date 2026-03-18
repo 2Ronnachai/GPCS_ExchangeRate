@@ -8,8 +8,10 @@ using GPCS_ExchangeRate.Application.Features.ExchangeRates.Commands.ReturnExchan
 using GPCS_ExchangeRate.Application.Features.ExchangeRates.Commands.SubmitExchangeRate;
 using GPCS_ExchangeRate.Application.Features.ExchangeRates.Commands.UpdateExchangeRate;
 using GPCS_ExchangeRate.Application.Features.ExchangeRates.Dto;
+using GPCS_ExchangeRate.Application.Features.ExchangeRates.Queries.GetAllExchangeRate;
 using GPCS_ExchangeRate.Application.Features.ExchangeRates.Queries.GetExchangeRateById;
 using GPCS_ExchangeRate.Application.Features.ExchangeRates.Queries.GetExchangeRatesByPeriod;
+using GPCS_ExchangeRate.Application.Features.ExchangeRates.Queries.GetRecentExchangeRate;
 using GPCS_ExchangeRate.Domain.Interfaces;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
@@ -21,9 +23,25 @@ public class ExchangeRatesController(IMediator mediator,ICurrentUserService curr
     private readonly IMediator _mediator = mediator;
     private readonly ICurrentUserService _currentUserService = currentUserService;
 
+    [HttpGet("all")]
+    [ProducesResponseType(typeof(ApiResponse<List<ExchangeRateHeaderDetailDto>>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetAll()
+    {
+        var result = await _mediator.Send(new GetExchangeRateQuery());
+        return OkResponse(result);
+    }
+
+    [HttpGet("recent")]
+    [ProducesResponseType(typeof(ApiResponse<List<ExchangeRateHeaderDetailDto>>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetRecent()
+    {
+        var result = await _mediator.Send(new GetRecentExchangeRateQuery());
+        return OkResponse(result);
+    }
+
     /// <summary>Create a new Exchange Rate document.</summary>
     [HttpPost]
-    [ProducesResponseType(typeof(ApiResponse<ExchangeRateHeaderDto>), StatusCodes.Status201Created)]
+    [ProducesResponseType(typeof(ApiResponse<ExchangeRateHeaderDetailDto>), StatusCodes.Status201Created)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> Create([FromBody] CreateExchangeRateCommand command)
     {
@@ -34,7 +52,7 @@ public class ExchangeRatesController(IMediator mediator,ICurrentUserService curr
     }
 
     [HttpPut("{id:int}")]
-    [ProducesResponseType(typeof(ApiResponse<ExchangeRateHeaderDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<ExchangeRateHeaderDetailDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> Update(
         int id,
@@ -53,7 +71,7 @@ public class ExchangeRatesController(IMediator mediator,ICurrentUserService curr
 
     /// <summary>Get an Exchange Rate by ID, including its detail lines.</summary>
     [HttpGet("{id:int}")]
-    [ProducesResponseType(typeof(ApiResponse<ExchangeRateHeaderDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<ExchangeRateHeaderDetailDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> GetById(int id)
     {
@@ -65,7 +83,7 @@ public class ExchangeRatesController(IMediator mediator,ICurrentUserService curr
 
     /// <summary>Get an Exchange Rate by period (yyyyMM format, e.g. 202603).</summary>
     [HttpGet]
-    [ProducesResponseType(typeof(ApiResponse<ExchangeRateHeaderDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<ExchangeRateHeaderDetailDto>), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> GetByPeriod([FromQuery] string period)
     {
@@ -73,6 +91,18 @@ public class ExchangeRatesController(IMediator mediator,ICurrentUserService curr
         return result is null
             ? NotFoundResponse($"Exchange rate for period '{period}' was not found.")
             : OkResponse(result);
+    }
+
+    [HttpPost("submit")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> Submit([FromBody] SubmitExchangeRateCommand command, CancellationToken ct)
+    {
+        command.UserName = _currentUserService.GetUserName();
+        var result = await _mediator.Send(command, ct);
+        return result is null
+            ? NotFoundResponse($"Exchange rate with ID '{command.Id}' was not found.")
+            : OkResponse(result, "Exchange rate submitted successfully.");
     }
 
     /// <summary>Submit an Exchange Rate document for approval.</summary>
@@ -83,8 +113,10 @@ public class ExchangeRatesController(IMediator mediator,ICurrentUserService curr
     {
         command.Id = id;
         command.UserName = _currentUserService.GetUserName();
-        await _mediator.Send(command, ct);
-        return NoContentResponse();
+        var result = await _mediator.Send(command, ct);
+        return result is null
+            ? NotFoundResponse($"Exchange rate with ID '{command.Id}' was not found.")
+            : OkResponse(result, "Exchange rate submitted successfully.");
     }
 
     /// <summary>Approve an Exchange Rate document.</summary>
@@ -94,8 +126,10 @@ public class ExchangeRatesController(IMediator mediator,ICurrentUserService curr
     public async Task<IActionResult> Approve(int id, [FromBody] ApproveExchangeRateCommand command, CancellationToken ct)
     {
         command.Id = id;
-        await _mediator.Send(command, ct);
-        return NoContentResponse();
+        var result = await _mediator.Send(command, ct);
+        return result is null
+            ? NotFoundResponse($"Exchange rate with ID '{command.Id}' was not found.")
+            : OkResponse(result, "Exchange rate approved successfully.");
     }
 
     /// <summary>Reject an Exchange Rate document.</summary>
@@ -105,8 +139,10 @@ public class ExchangeRatesController(IMediator mediator,ICurrentUserService curr
     public async Task<IActionResult> Reject(int id, [FromBody] RejectExchangeRateCommand command, CancellationToken ct)
     {
         command.Id = id;
-        await _mediator.Send(command, ct);
-        return NoContentResponse();
+        var result = await _mediator.Send(command, ct);
+        return result is null
+            ? NotFoundResponse($"Exchange rate with ID '{command.Id}' was not found.")
+            : OkResponse(result, "Exchange rate rejected successfully.");
     }
 
     /// <summary>Cancel an Exchange Rate document.</summary>
@@ -116,8 +152,10 @@ public class ExchangeRatesController(IMediator mediator,ICurrentUserService curr
     public async Task<IActionResult> Cancel(int id, [FromBody] CancelExchangeRateCommand command, CancellationToken ct)
     {
         command.Id = id;
-        await _mediator.Send(command, ct);
-        return NoContentResponse();
+        var result = await _mediator.Send(command, ct);
+        return result is null
+            ? NotFoundResponse($"Exchange rate with ID '{command.Id}' was not found.")
+            : OkResponse(result, "Exchange rate cancelled successfully.");
     }
 
     /// <summary>Return an Exchange Rate document to the previous step.</summary>
@@ -127,8 +165,10 @@ public class ExchangeRatesController(IMediator mediator,ICurrentUserService curr
     public async Task<IActionResult> Return(int id, [FromBody] ReturnExchangeRateCommand command, CancellationToken ct)
     {
         command.Id = id;
-        await _mediator.Send(command, ct);
-        return NoContentResponse();
+        var result = await _mediator.Send(command, ct);
+        return result is null
+            ? NotFoundResponse($"Exchange rate with ID '{command.Id}' was not found.")
+            : OkResponse(result, "Exchange rate returned successfully.");
     }
 
     /// <summary>Delete an Exchange Rate and its external document.</summary>
@@ -138,6 +178,6 @@ public class ExchangeRatesController(IMediator mediator,ICurrentUserService curr
     public async Task<IActionResult> Delete(int id, CancellationToken ct)
     {
         await _mediator.Send(new DeleteExchangeRateCommand { Id = id }, ct);
-        return NoContentResponse();
+        return OkResponse($"Exchange rate with ID '{id}' deleted successfully.");
     }
 }

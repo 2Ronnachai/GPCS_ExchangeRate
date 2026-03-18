@@ -15,7 +15,7 @@ namespace GPCS_ExchangeRate.Application.Features.ExchangeRates.Commands.UpdateEx
         IDateTimeService dateTimeService,
         IDocumentService documentService,
         IWorkflowConfiguration workflowConfiguration)
-        : IRequestHandler<UpdateExchangeRateCommand, ExchangeRateHeaderDto>
+        : IRequestHandler<UpdateExchangeRateCommand, ExchangeRateHeaderDetailDto>
     {
         private readonly IUnitOfWork _unitOfWork = unitOfWork;
         private readonly IMapper _mapper = mapper;
@@ -23,7 +23,7 @@ namespace GPCS_ExchangeRate.Application.Features.ExchangeRates.Commands.UpdateEx
         private readonly IDocumentService _documentService = documentService;
         private readonly IWorkflowConfiguration _workflowConfiguration = workflowConfiguration;
 
-        public async Task<ExchangeRateHeaderDto> Handle(
+        public async Task<ExchangeRateHeaderDetailDto> Handle(
             UpdateExchangeRateCommand request,
             CancellationToken cancellationToken)
         {
@@ -63,13 +63,21 @@ namespace GPCS_ExchangeRate.Application.Features.ExchangeRates.Commands.UpdateEx
                     }
                 };
 
-                await _documentService.UpdateAsync(
+                var document = await _documentService.UpdateAsync(
                     header.DocumentId.Value,
                     updateDocumentRequest,
                     cancellationToken);
 
                 // 2 Update ExchangeRateHeader
                 header.Period = periodDate;
+
+                //header.DocumentId = document.DocumentId; // No change
+                //header.DocumentStatus = document.DocumentStatus; // No change
+                //header.DocumentNumber = document.DocumentNumber; // No change
+                header.IsUrgent = document?.IsUrgent ?? request.IsUrgent;
+                header.EffectiveDate = document?.EffectiveDate;
+                header.Remarks = document?.Remarks;
+                header.CompletedAt = document?.CompletedAt;
 
                 // 3 Update ExchangeRateDetails
                 header.Details = request.Items.Select(item => new Domain.Entities.ExchangeRateDetail
@@ -87,7 +95,7 @@ namespace GPCS_ExchangeRate.Application.Features.ExchangeRates.Commands.UpdateEx
                 var result = await _unitOfWork.ExchangeRateHeaders
                     .GetWithDetailsAsync(header.Id);
 
-                return _mapper.Map<ExchangeRateHeaderDto>(result);
+                return _mapper.Map<ExchangeRateHeaderDetailDto>(result);
             }
             catch
             {

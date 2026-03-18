@@ -15,6 +15,11 @@ public class ExchangeRateHeader : AuditableEntity
 
     /// <summary>Document ID assigned by the Document Control API.</summary>
     public int? DocumentId { get; set; }
+    public string? DocumentStatus { get; set; }
+    public bool IsUrgent { get; set; }
+    public DateTime? EffectiveDate { get; set; }
+    public string? Remarks { get; set; }
+    public DateTime? CompletedAt { get; set; } = null;
 
-    public ICollection<ExchangeRateDetail> Details { get; set; } = new List<ExchangeRateDetail>();
+    public ICollection<ExchangeRateDetail> Details { get; set; } = [];
 }

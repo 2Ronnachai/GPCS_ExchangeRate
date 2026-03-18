@@ -3,7 +3,7 @@ using MediatR;
 
 namespace GPCS_ExchangeRate.Application.Features.ExchangeRates.Queries.GetExchangeRateById;
 
-public class GetExchangeRateByIdQuery(int id) : IRequest<ExchangeRateHeaderDto?>
+public class GetExchangeRateByIdQuery(int id) : IRequest<ExchangeRateHeaderDetailDto?>
 {
     public int Id { get; set; } = id;
 }

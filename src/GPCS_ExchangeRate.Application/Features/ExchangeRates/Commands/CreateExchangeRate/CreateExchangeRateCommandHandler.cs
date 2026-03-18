@@ -19,7 +19,7 @@ public class CreateExchangeRateCommandHandler(
     IDocumentService documentService,
     ILogger<CreateExchangeRateCommandHandler> logger,
     IWorkflowConfiguration workflowConfiguration) :
-    IRequestHandler<CreateExchangeRateCommand, ExchangeRateHeaderDto>
+    IRequestHandler<CreateExchangeRateCommand, ExchangeRateHeaderDetailDto>
 {
     private readonly IUnitOfWork _unitOfWork = unitOfWork;
     private readonly IMapper _mapper = mapper;
@@ -28,7 +28,7 @@ public class CreateExchangeRateCommandHandler(
     private readonly ILogger<CreateExchangeRateCommandHandler> _logger = logger;
     private readonly IWorkflowConfiguration _workflowConfiguration = workflowConfiguration;
 
-    public async Task<ExchangeRateHeaderDto> Handle(
+    public async Task<ExchangeRateHeaderDetailDto> Handle(
         CreateExchangeRateCommand request,
         CancellationToken cancellationToken)
     {
@@ -68,8 +68,16 @@ public class CreateExchangeRateCommandHandler(
             var header = new ExchangeRateHeader
             {
                 Period = periodDate,
+
+                // Link to the created document
                 DocumentId = document.Id,
                 DocumentNumber = document.DocumentNo,
+                DocumentStatus = document.DocumentStatus,
+                
+                IsUrgent = document.IsUrgent,
+                EffectiveDate = document.EffectiveDate,
+                Remarks = document.Remarks,
+
                 Details = request.Items.Select(item => new ExchangeRateDetail
                 {
                     CurrencyCode = item.CurrencyCode.ToUpperInvariant(),
@@ -87,7 +95,7 @@ public class CreateExchangeRateCommandHandler(
 
             var result = await _unitOfWork.ExchangeRateHeaders.GetWithDetailsAsync(header.Id);
 
-            return _mapper.Map<ExchangeRateHeaderDto>(result);
+            return _mapper.Map<ExchangeRateHeaderDetailDto>(result);
         }
         catch
         {

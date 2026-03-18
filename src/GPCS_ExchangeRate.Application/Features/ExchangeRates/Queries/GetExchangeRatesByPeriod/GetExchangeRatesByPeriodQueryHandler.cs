@@ -6,7 +6,7 @@ using MediatR;
 namespace GPCS_ExchangeRate.Application.Features.ExchangeRates.Queries.GetExchangeRatesByPeriod;
 
 public class GetExchangeRatesByPeriodQueryHandler
-    : IRequestHandler<GetExchangeRatesByPeriodQuery, ExchangeRateHeaderDto?>
+    : IRequestHandler<GetExchangeRatesByPeriodQuery, ExchangeRateHeaderDetailDto?>
 {
     private readonly IUnitOfWork _unitOfWork;
     private readonly IMapper _mapper;
@@ -17,7 +17,7 @@ public class GetExchangeRatesByPeriodQueryHandler
         _mapper = mapper;
     }
 
-    public async Task<ExchangeRateHeaderDto?> Handle(
+    public async Task<ExchangeRateHeaderDetailDto?> Handle(
         GetExchangeRatesByPeriodQuery request,
         CancellationToken cancellationToken)
     {
@@ -25,7 +25,7 @@ public class GetExchangeRatesByPeriodQueryHandler
             throw new ArgumentException($"Invalid period format '{request.Period}'. Expected format: yyyyMM (e.g. 202603)");
 
         var header = await _unitOfWork.ExchangeRateHeaders.GetByPeriodAsync(periodDate);
-        return header is null ? null : _mapper.Map<ExchangeRateHeaderDto>(header);
+        return header is null ? null : _mapper.Map<ExchangeRateHeaderDetailDto>(header);
     }
 
     private static bool TryParsePeriod(string period, out DateTime result)

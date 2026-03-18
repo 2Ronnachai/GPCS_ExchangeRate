@@ -17,4 +17,16 @@ public class ExchangeRateHeaderRepository(AppDbContext context)
         => await _dbSet
             .Include(h => h.Details)
             .FirstOrDefaultAsync(h => h.Id == id);
+
+    public async Task<List<ExchangeRateHeader>> GetAllWithDetailsAsync()
+        => await _dbSet
+            .Include(h => h.Details)
+            .ToListAsync();
+
+    public async Task<IReadOnlyList<ExchangeRateHeader>> GetRecentWithDetailsAsync(int take)
+        => await _dbSet
+            .Include(h => h.Details)
+            .OrderByDescending(h => h.Period)
+            .Take(take)
+            .ToListAsync();
 }

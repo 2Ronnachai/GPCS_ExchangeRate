@@ -1,4 +1,6 @@
-using GPCS_ExchangeRate.Application.Dtos.Documents.Request;
+using AutoMapper;
+using GPCS_ExchangeRate.Application.Dtos.Documents.Responses;
+using GPCS_ExchangeRate.Application.Features.ExchangeRates.Dto;
 using GPCS_ExchangeRate.Application.Interfaces.External;
 using GPCS_ExchangeRate.Domain.Entities;
 using GPCS_ExchangeRate.Domain.Interfaces;
@@ -13,16 +15,18 @@ namespace GPCS_ExchangeRate.Application.Features.ExchangeRates.Commands.Common;
 /// </summary>
 public abstract class DocumentActionHandlerBase<TCommand>(
     IUnitOfWork unitOfWork,
+    IMapper mapper,
     IDocumentService documentService,
     ILogger logger)
-    : IRequestHandler<TCommand>
+    : IRequestHandler<TCommand, ExchangeRateHeaderDetailDto>
     where TCommand : IDocumentActionCommand
 {
     protected readonly IUnitOfWork _unitOfWork = unitOfWork;
+    protected readonly IMapper _mapper = mapper;
     protected readonly IDocumentService _documentService = documentService;
     protected readonly ILogger _logger = logger;
 
-    public async Task Handle(TCommand request, CancellationToken cancellationToken)
+    public async Task<ExchangeRateHeaderDetailDto> Handle(TCommand request, CancellationToken cancellationToken)
     {
         var header = await _unitOfWork.ExchangeRateHeaders
             .GetWithDetailsAsync(request.Id)
@@ -31,10 +35,10 @@ public abstract class DocumentActionHandlerBase<TCommand>(
         if (header.DocumentId == null)
             throw new InvalidOperationException($"DocumentId is null for ExchangeRateHeader {request.Id}.");
 
-        await ExecuteActionAsync(header, request, cancellationToken);
+        return await ExecuteActionAsync(header, request, cancellationToken);
     }
 
-    protected abstract Task ExecuteActionAsync(
+    protected abstract Task<ExchangeRateHeaderDetailDto> ExecuteActionAsync(
         ExchangeRateHeader header,
         TCommand request,
         CancellationToken cancellationToken);
@@ -42,19 +46,75 @@ public abstract class DocumentActionHandlerBase<TCommand>(
     /// <summary>
     /// Executes an external API action and attempts rollback compensation if it fails.
     /// </summary>
-    protected async Task ExecuteWithRollbackAsync(
+    protected async Task<ExchangeRateHeaderDetailDto> ExecuteDocumentActionWithStatusUpdateAsync(
+          ExchangeRateHeader header,
+          Func<Task<DocumentDto?>> action,
+          Func<int, Task> rollbackAction,
+          string actionName,
+          CancellationToken cancellationToken)
+    {
+        var docId = header.DocumentId!.Value;
+
+        var document = await action()
+            ?? throw new InvalidOperationException(
+                $"External Document API returned null after {actionName} for document {docId}.");
+
+        await _unitOfWork.BeginTransactionAsync(cancellationToken);
+        try
+        {
+            header.DocumentStatus = document.DocumentStatus;
+
+            header.EffectiveDate = document.EffectiveDate;
+            header.IsUrgent = document.IsUrgent;
+            header.Remarks = document.Remarks;
+
+            header.CompletedAt = document.CompletedAt;
+
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+            await _unitOfWork.CommitTransactionAsync(cancellationToken);
+
+            _logger.LogInformation(
+                "{ActionName} succeeded for document {DocumentId}. Status updated to '{Status}' for ExchangeRateHeader {HeaderId}.",
+                actionName, docId, document.DocumentStatus, header.Id);
+
+            var result = await _unitOfWork.ExchangeRateHeaders
+                .GetWithDetailsAsync(header.Id)
+                ?? header;
+
+            return _mapper.Map<ExchangeRateHeaderDetailDto>(result);
+        }
+        catch (Exception ex)
+        {
+            await _unitOfWork.RollbackTransactionAsync(cancellationToken);
+
+            _logger.LogError(ex,
+                "Failed to save DocumentStatus after {ActionName} for document {DocumentId}. Attempting rollback.",
+                actionName, docId);
+
+            await TryRollbackAsync(docId, rollbackAction, actionName);
+
+            throw;
+        }
+    }
+
+    private async Task TryRollbackAsync(
         int documentId,
-        Func<Task> action,
+        Func<int, Task> rollbackAction,
         string actionName)
     {
         try
         {
-            await action();
+            await rollbackAction(documentId);
+
+            _logger.LogInformation(
+                "Compensation: Rollback{ActionName} succeeded for document {DocumentId}.",
+                actionName, documentId);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "{Action} failed for document {DocumentId}. User can retry.", actionName, documentId);
-            throw;
+            _logger.LogError(ex,
+                "Compensation failed: Rollback{ActionName} failed for document {DocumentId}. Manual cleanup required.",
+                actionName, documentId);
         }
     }
 }

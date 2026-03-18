@@ -30,20 +30,20 @@ namespace GPCS_ExchangeRate.Infrastructure.Services.External
 
         // ── Actions ───────────────────────────────────────────────────────────────
 
-        public Task SubmitAsync(int id, NotRequireComment request, CancellationToken ct = default)
-            => SendActionAsync(BuildUrl(DocumentEndpoints.SubmitDocument, id), request, ct);
+        public Task<DocumentDto?> SubmitAsync(int id, NotRequireComment request, CancellationToken ct = default)
+            => SendActionAndReturnDocumentAsync(BuildUrl(DocumentEndpoints.SubmitDocument, id), request, ct);
 
-        public Task ApproveAsync(int id, NotRequireComment request, CancellationToken ct = default)
-            => SendActionAsync(BuildUrl(DocumentEndpoints.ApproveDocument, id), request, ct);
+        public Task<DocumentDto?> ApproveAsync(int id, NotRequireComment request, CancellationToken ct = default)
+            => SendActionAndReturnDocumentAsync(BuildUrl(DocumentEndpoints.ApproveDocument, id), request, ct);
 
-        public Task RejectAsync(int id, RequireComment request, CancellationToken ct = default)
-            => SendActionAsync(BuildUrl(DocumentEndpoints.RejectDocument, id), request, ct);
+        public Task<DocumentDto?> RejectAsync(int id, RequireComment request, CancellationToken ct = default)
+            => SendActionAndReturnDocumentAsync(BuildUrl(DocumentEndpoints.RejectDocument, id), request, ct);
 
-        public Task CancelAsync(int id, RequireComment request, CancellationToken ct = default)
-            => SendActionAsync(BuildUrl(DocumentEndpoints.CancelDocument, id), request, ct);
+        public Task<DocumentDto?> CancelAsync(int id, RequireComment request, CancellationToken ct = default)
+            => SendActionAndReturnDocumentAsync(BuildUrl(DocumentEndpoints.CancelDocument, id), request, ct);
 
-        public Task ReturnAsync(int id, ReturnRequest request, CancellationToken ct = default)
-            => SendActionAsync(BuildUrl(DocumentEndpoints.ReturnDocument, id), request, ct);
+        public Task<DocumentDto?> ReturnAsync(int id, ReturnRequest request, CancellationToken ct = default)
+            => SendActionAndReturnDocumentAsync(BuildUrl(DocumentEndpoints.ReturnDocument, id), request, ct);
 
         // ── Rollbacks ─────────────────────────────────────────────────────────────
 
@@ -117,6 +117,29 @@ namespace GPCS_ExchangeRate.Infrastructure.Services.External
                 _logger.LogWarning("External API action failed: {Message}", msg);
                 throw new HttpRequestException(msg);
             }
+        }
+
+        private async Task<DocumentDto?> SendActionAndReturnDocumentAsync(string url, object body, CancellationToken ct)
+        {
+            using var request = new HttpRequestMessage(HttpMethod.Post, url)
+            {
+                Content = JsonContent.Create(body)
+            };
+            var response = await _httpClient.SendAsync(request, ct);
+            if (!response.IsSuccessStatusCode)
+            {
+                _logger.LogWarning("External API POST {Url} returned {StatusCode}", url, response.StatusCode);
+                response.EnsureSuccessStatusCode();
+            }
+            var envelope = await response.Content
+                .ReadFromJsonAsync<ExternalApiResponse<DocumentDto>>(cancellationToken: ct);
+            if (envelope is null || !envelope.Success)
+            {
+                var msg = envelope?.Message ?? "Unknown error from External Document API.";
+                _logger.LogWarning("External API action failed: {Message}", msg);
+                throw new HttpRequestException(msg);
+            }
+            return envelope.Data;
         }
 
         // ── URL Builder ───────────────────────────────────────────────────────────

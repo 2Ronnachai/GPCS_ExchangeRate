@@ -1,12 +1,12 @@
 ﻿using FluentValidation;
+using GPCS_ExchangeRate.Application.Features.ExchangeRates.Commands.CreateExchangeRate;
 using GPCS_ExchangeRate.Application.Features.ExchangeRates.Dto;
-using GPCS_ExchangeRate.Domain.Interfaces;
 
-namespace GPCS_ExchangeRate.Application.Features.ExchangeRates.Commands.CreateExchangeRate
+namespace GPCS_ExchangeRate.Application.Features.ExchangeRates.Commands.SubmitExchangeRate
 {
-    public class CreateExchangeRateCommandValidator : AbstractValidator<CreateExchangeRateCommand>
+    public class SubmitExchangeRateCommandValidator : AbstractValidator<SubmitExchangeRateCommand>
     {
-        public CreateExchangeRateCommandValidator()
+        public SubmitExchangeRateCommandValidator()
         {
             RuleFor(x => x.UserName)
                 .NotEmpty()

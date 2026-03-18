@@ -6,4 +6,8 @@ public interface IExchangeRateHeaderRepository : IGenericRepository<ExchangeRate
 {
     Task<ExchangeRateHeader?> GetByPeriodAsync(DateTime period);
     Task<ExchangeRateHeader?> GetWithDetailsAsync(int id);
+
+    Task<List<ExchangeRateHeader>> GetAllWithDetailsAsync();
+
+    Task<IReadOnlyList<ExchangeRateHeader>> GetRecentWithDetailsAsync(int take);
 }

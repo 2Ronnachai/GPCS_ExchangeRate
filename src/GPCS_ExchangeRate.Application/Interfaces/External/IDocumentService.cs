@@ -10,11 +10,11 @@ namespace GPCS_ExchangeRate.Application.Interfaces.External
         Task<DocumentDto?> UpdateAsync(int id, UpdateDocumentRequest request, CancellationToken ct = default);
         Task<DocumentDto?> DeleteAsync(int id, CancellationToken ct = default);
 
-        Task SubmitAsync(int id, NotRequireComment request, CancellationToken ct = default);
-        Task ApproveAsync(int id, NotRequireComment request, CancellationToken ct = default);
-        Task RejectAsync(int id, RequireComment request, CancellationToken ct = default);
-        Task CancelAsync(int id, RequireComment request, CancellationToken ct = default);
-        Task ReturnAsync(int id, ReturnRequest request, CancellationToken ct = default);
+        Task<DocumentDto?> SubmitAsync(int id, NotRequireComment request, CancellationToken ct = default);
+        Task<DocumentDto?> ApproveAsync(int id, NotRequireComment request, CancellationToken ct = default);
+        Task<DocumentDto?> RejectAsync(int id, RequireComment request, CancellationToken ct = default);    
+        Task<DocumentDto?> CancelAsync(int id, RequireComment request, CancellationToken ct = default);    
+        Task<DocumentDto?> ReturnAsync(int id, ReturnRequest request, CancellationToken ct = default);
 
         Task RollbackSubmitAsync(int id, RollbackRequest request, CancellationToken ct = default);
         Task RollbackApproveAsync(int id, RollbackRequest request, CancellationToken ct = default);

@@ -33,6 +33,41 @@ builder.Services.AddSwaggerGen(c =>
     c.SwaggerDoc("v1", new() { Title = "GPCS ExchangeRate API", Version = "v1" });
 });
 
+// Cor Configuration
+var corsSettings = builder.Configuration.GetSection("Cors");
+var allowedOrigins = corsSettings.GetSection("AllowedOrigins").Get<string[]>() ?? [];
+var allowAnyOrigin = corsSettings.GetValue<bool>("AllowAnyOrigin");
+
+builder.Services.AddCors(options =>
+{
+    options.AddDefaultPolicy(policy =>
+    {
+        if (allowAnyOrigin)
+        {
+            // Development: Allow any origin
+            policy.SetIsOriginAllowed(origin => true)
+                  .AllowAnyMethod()
+                  .AllowAnyHeader()
+                  .AllowCredentials();
+        }
+        else if (allowedOrigins.Length > 0)
+        {
+            // Production: Specify allowed origins
+            policy.WithOrigins(allowedOrigins)
+                  .AllowAnyMethod()
+                  .AllowAnyHeader()
+                  .AllowCredentials();
+        }
+        else
+        {
+            // Fallback: No CORS configuration found
+            throw new InvalidOperationException(
+                "CORS configuration is required!"
+            );
+        }
+    });
+});
+
 var app = builder.Build();
 
 // --- Middleware ---
@@ -44,6 +79,7 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
+app.UseCors();
 app.UseHttpsRedirection();
 
 app.UseAuthentication();
