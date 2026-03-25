@@ -5,6 +5,8 @@
         // Query Endpoints
         public const string GetAllDocuments = ""; // GET
         public const string GetDocumentById = "{id:int}"; // GET
+        public const string GetByDocumentType = "by-type/{documentType}"; // GET
+        public const string GetDocumentsByIds = "by-ids"; // POST
 
         // Command Endpoints
         public const string CreateDocument =""; // POST

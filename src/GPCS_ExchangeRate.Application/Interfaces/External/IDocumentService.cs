@@ -6,9 +6,10 @@ namespace GPCS_ExchangeRate.Application.Interfaces.External
     public interface IDocumentService
     {
         Task<DocumentDto?> GetByIdAsync(int id , CancellationToken ct = default);
+        Task<IEnumerable<DocumentDto>?> GetByIdsAsync(IEnumerable<int> ids, CancellationToken ct = default);
         Task<DocumentDto?> CreateAsync(CreateDocumentRequest request, CancellationToken ct = default);
         Task<DocumentDto?> UpdateAsync(int id, UpdateDocumentRequest request, CancellationToken ct = default);
-        Task<DocumentDto?> DeleteAsync(int id, CancellationToken ct = default);
+        Task DeleteAsync(int id, CancellationToken ct = default);
 
         Task<DocumentDto?> SubmitAsync(int id, NotRequireComment request, CancellationToken ct = default);
         Task<DocumentDto?> ApproveAsync(int id, NotRequireComment request, CancellationToken ct = default);

@@ -20,6 +20,11 @@ namespace GPCS_ExchangeRate.Infrastructure.Services.External
             return Task.FromResult(user is null ? null : MapToDto(user));
         }
 
+        public Task<List<UserDto>> GetByNIdsAsync(List<string> nIds, CancellationToken cancellationToken = default)
+        {
+            var users = _users.Where(u => nIds.Contains(u.NId)).Select(MapToDto).ToList();
+            return Task.FromResult(users);
+        }
         public Task<List<UserDto>> GetAllAsync(CancellationToken cancellationToken = default)
         {
             var result = _users.Select(MapToDto).ToList();

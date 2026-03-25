@@ -21,9 +21,9 @@ namespace GPCS_ExchangeRate.Application.Features.ExchangeRates.Commands.CreateEx
                 .GreaterThan(0)
                 .WithMessage("Rate must be greater than 0.")
                 .LessThanOrEqualTo(999999.999999m)
-                .WithMessage("Rate is out of acceptable range.")
-                .Must(HaveAtMost6DecimalPlaces)
-                .WithMessage("Rate must not have more than 6 decimal places.");
+                .WithMessage("Rate is out of acceptable range.");
+                //.Must(HaveAtMost6DecimalPlaces)
+                //.WithMessage("Rate must not have more than 6 decimal places.");
         }
 
         private static bool HaveAtMost6DecimalPlaces(decimal rate)

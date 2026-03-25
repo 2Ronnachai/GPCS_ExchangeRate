@@ -4,6 +4,7 @@ public interface IUnitOfWork : IDisposable
 {
     IExchangeRateHeaderRepository ExchangeRateHeaders { get; }
     IExchangeRateDetailRepository ExchangeRateDetails { get; }
+    IExchangeRateOutBoxEventsRepository ExchangeRateOutBoxEvents { get; }
 
     // ── Persistence ────────────────────────────────────────
     Task<int> SaveChangesAsync(CancellationToken cancellationToken = default);

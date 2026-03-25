@@ -2,6 +2,7 @@
 {
     public class UpdateDocumentRequest
     {
+        public int DocumentId { get; set; }
         public string? Title { get; set; }
         public DateTime? EffectiveDate { get; set; }
         public bool IsUrgent { get; set; }

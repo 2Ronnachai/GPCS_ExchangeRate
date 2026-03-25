@@ -37,7 +37,7 @@ namespace GPCS_ExchangeRate.Application.Features.ExchangeRates.Commands.UpdateEx
                 throw new InvalidOperationException($"DocumentId is null for ExchangeRateHeader {request.Id}.");
 
             var isDuplicate = await _unitOfWork.ExchangeRateHeaders
-                .AnyAsync(x => x.Period == periodDate && x.Id != header.Id, cancellationToken);
+                .ExistByPeriodExcludingIdAsync(periodDate, header.Id, cancellationToken);
 
             if (isDuplicate)
                 throw new ArgumentException($"Exchange rate for period '{request.Period}' already exists.");
@@ -48,6 +48,7 @@ namespace GPCS_ExchangeRate.Application.Features.ExchangeRates.Commands.UpdateEx
                 // 1 Update Document
                 var updateDocumentRequest = new UpdateDocumentRequest
                 {
+                    DocumentId = header.DocumentId.Value,
                     Title = request.Title,
                     EffectiveDate = request.EffectiveDate ?? _dateTimeService.Now,
                     IsUrgent = request.IsUrgent,

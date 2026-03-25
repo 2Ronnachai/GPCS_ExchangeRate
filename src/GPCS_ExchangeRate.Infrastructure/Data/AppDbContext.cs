@@ -16,6 +16,9 @@ public class AppDbContext(DbContextOptions<AppDbContext> options,
     public DbSet<ExchangeRateHeader> ExchangeRateHeaders => Set<ExchangeRateHeader>();
     public DbSet<ExchangeRateDetail> ExchangeRateDetails => Set<ExchangeRateDetail>();
 
+    // For OutBox pattern to store events related to exchange rate changes
+    public DbSet<ExchangeRateOutBoxEvents> ExchangeRateOutBoxEvents => Set<ExchangeRateOutBoxEvents>();
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);

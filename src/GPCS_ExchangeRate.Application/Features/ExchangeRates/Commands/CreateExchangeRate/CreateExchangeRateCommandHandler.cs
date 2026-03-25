@@ -35,7 +35,7 @@ public class CreateExchangeRateCommandHandler(
         var periodDate = PeriodParser.Parse(request.Period);
 
         var isDuplicate = await _unitOfWork.ExchangeRateHeaders
-            .AnyAsync(h => h.Period == periodDate, cancellationToken);
+            .ExistByPeriodAsync(periodDate, cancellationToken);
 
         if (isDuplicate)
             throw new ArgumentException($"Exchange rate for period '{request.Period}' already exists.");

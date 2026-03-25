@@ -6,6 +6,7 @@ using GPCS_ExchangeRate.Domain.Entities;
 using GPCS_ExchangeRate.Domain.Interfaces;
 using MediatR;
 using Microsoft.Extensions.Logging;
+using System.Text.Json;
 
 namespace GPCS_ExchangeRate.Application.Features.ExchangeRates.Commands.Common;
 
@@ -70,6 +71,8 @@ public abstract class DocumentActionHandlerBase<TCommand>(
 
             header.CompletedAt = document.CompletedAt;
 
+            await AddToOutboxAsync(header, cancellationToken);
+
             await _unitOfWork.SaveChangesAsync(cancellationToken);
             await _unitOfWork.CommitTransactionAsync(cancellationToken);
 
@@ -94,6 +97,41 @@ public abstract class DocumentActionHandlerBase<TCommand>(
             await TryRollbackAsync(docId, rollbackAction, actionName);
 
             throw;
+        }
+    }
+
+    private async Task AddToOutboxAsync(ExchangeRateHeader header, CancellationToken cancellationToken)
+    {
+        if(header.DocumentStatus == "Completed" && header.CompletedAt != null)
+        {
+            var payloads = new List<ExchangeRatePayloadDto>();
+            foreach (var detail in header.Details)
+            {
+                payloads.Add(new ExchangeRatePayloadDto
+                {
+                    CurrencyCode = detail.CurrencyCode,
+                    Period = header.Period.ToString("yyyyMM"),
+                    Rate = detail.Rate4Digit,
+                    Rate2 = detail.Rate,
+                    AppUserID = header.CreatedBy ?? "System",
+                    AppDate = header.CreatedAt.ToString("yyyyMMdd"),
+                    UpdUserID = header.UpdatedBy,
+                    UpdDate = header.UpdatedAt?.ToString("yyyyMMdd"),
+                    UpdPGM = string.Empty
+                });
+            }
+
+            var outboxEntry = new ExchangeRateOutBoxEvents
+            {
+                EventType = "ExchangeRate",
+                Payload = JsonSerializer.Serialize(payloads),
+            };
+
+            await _unitOfWork.ExchangeRateOutBoxEvents.AddAsync(outboxEntry);
+
+            _logger.LogInformation(
+                    "Outbox entry created for ExchangeRateHeader {HeaderId} with DocumentStatus 'Completed'. Payload: {Payload}",
+                    header.Id, outboxEntry.Payload);
         }
     }
 

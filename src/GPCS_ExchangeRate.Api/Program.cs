@@ -1,6 +1,7 @@
 using GPCS_ExchangeRate.Api.Handlers;
 using GPCS_ExchangeRate.Application;
 using GPCS_ExchangeRate.Infrastructure;
+using GPCS_ExchangeRate.Infrastructure.BackgroundServices;
 using Microsoft.AspNetCore.Authentication.Negotiate;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -32,6 +33,9 @@ builder.Services.AddSwaggerGen(c =>
 {
     c.SwaggerDoc("v1", new() { Title = "GPCS ExchangeRate API", Version = "v1" });
 });
+
+// --- Background Services ---
+builder.Services.AddHostedService<OutboxProcessorService>();
 
 // Cor Configuration
 var corsSettings = builder.Configuration.GetSection("Cors");

@@ -12,12 +12,16 @@ public class UnitOfWork(AppDbContext context) : IUnitOfWork
 
     private IExchangeRateHeaderRepository? _exchangeRateHeaders;
     private IExchangeRateDetailRepository? _exchangeRateDetails;
+    private IExchangeRateOutBoxEventsRepository? _exchangeRateOutBoxEvents;
 
     public IExchangeRateHeaderRepository ExchangeRateHeaders
         => _exchangeRateHeaders ??= new ExchangeRateHeaderRepository(_context);
 
     public IExchangeRateDetailRepository ExchangeRateDetails
         => _exchangeRateDetails ??= new ExchangeRateDetailRepository(_context);
+
+    public IExchangeRateOutBoxEventsRepository ExchangeRateOutBoxEvents
+        => _exchangeRateOutBoxEvents ??= new ExchangeRateOutBoxEventsRepository(_context);
 
     // ── Persistence ───────────────────────────────────────────────────────────
     public Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)

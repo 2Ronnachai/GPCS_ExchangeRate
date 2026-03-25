@@ -50,46 +50,69 @@ namespace GPCS_ExchangeRate.Application.Features.ExchangeRates.Commands.SubmitEx
             CancellationToken cancellationToken)
         {
             var periodDate = PeriodParser.Parse(request.Period);
+
+            var isDuplicate = await _unitOfWork.ExchangeRateHeaders
+                .ExistByPeriodAsync(periodDate, cancellationToken);
+
+            if (isDuplicate)
+                throw new ArgumentException($"Exchange rate for period '{request.Period}' already exists.");
+
             DocumentDto? document = null;
+            DocumentDto? submittedDocument = null;
 
             await _unitOfWork.BeginTransactionAsync(cancellationToken);
             try
             {
-                document = await _documentService.CreateAsync(
-                    BuildCreateDocumentRequest(request), cancellationToken)
-                    ?? throw new InvalidOperationException("External Document API returned null after CreateAsync.");
-                var header = new ExchangeRateHeader
-                {
-                    DocumentId = document.Id,
-                    DocumentNumber = document.DocumentNo,
-                    DocumentStatus = document.DocumentStatus,
-                    EffectiveDate = document.EffectiveDate,
-                    IsUrgent = document.IsUrgent,
-                    Remarks = document.Remarks,
-                    CompletedAt = document.CompletedAt
-                };
+                var header = new ExchangeRateHeader();
                 UpdateExchangeRateData(header, periodDate, request);
 
                 await _unitOfWork.ExchangeRateHeaders.AddAsync(header);
                 await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+                document = await _documentService.CreateAsync(
+                    BuildCreateDocumentRequest(request, header.Id), cancellationToken)
+                    ?? throw new InvalidOperationException(
+                        "External Document API returned null after CreateAsync.");
+
+                submittedDocument = await _documentService.SubmitAsync(
+                    document.Id,
+                    new NotRequireComment { Comment = request.Comment },
+                    cancellationToken)
+                    ?? throw new InvalidOperationException(
+                        $"External Document API returned null after SubmitAsync for document {document.Id}.");
+
+                header.DocumentId = submittedDocument.Id;
+                header.DocumentNumber = submittedDocument.DocumentNo;
+                header.DocumentStatus = submittedDocument.DocumentStatus;
+                header.EffectiveDate = submittedDocument.EffectiveDate;
+                header.IsUrgent = submittedDocument.IsUrgent;
+                header.Remarks = submittedDocument.Remarks;
+                header.CompletedAt = submittedDocument.CompletedAt;
+
+                await _unitOfWork.SaveChangesAsync(cancellationToken);
                 await _unitOfWork.CommitTransactionAsync(cancellationToken);
 
                 _logger.LogInformation(
-                    "Document {DocumentId} created and DB saved for new ExchangeRateHeader {HeaderId}.",
-                    document.Id, header.Id);
+                    "Document {DocumentId} created and submitted for ExchangeRateHeader {HeaderId}.",
+                    submittedDocument.Id, header.Id);
 
-                await SubmitDocumentAsync(header, request.Comment, cancellationToken);
                 var result = await _unitOfWork.ExchangeRateHeaders
-                    .GetWithDetailsAsync(request.Id)
-                    ?? header;
+                    .GetWithDetailsAsync(header.Id) ?? header;
 
                 return _mapper.Map<ExchangeRateHeaderDetailDto>(result);
             }
-            catch
+            catch (Exception ex)
             {
                 await _unitOfWork.RollbackTransactionAsync(cancellationToken);
+
+                _logger.LogError(ex, "Failed to create and submit document.");
+
+                // Compensate External API
+                if (submittedDocument?.Id > 0)
+                    await TryRollbackSubmitAsync(submittedDocument.Id, cancellationToken);
                 if (document?.Id > 0)
                     await TryDeleteDocumentAsync(document.Id, cancellationToken);
+
                 throw;
             }
         }
@@ -100,50 +123,77 @@ namespace GPCS_ExchangeRate.Application.Features.ExchangeRates.Commands.SubmitEx
             CancellationToken cancellationToken)
         {
             var periodDate = PeriodParser.Parse(request.Period);
+
+            var isDuplicate = await _unitOfWork.ExchangeRateHeaders
+                .ExistByPeriodAsync(periodDate, cancellationToken);
+
+            if (isDuplicate)
+                throw new ArgumentException($"Exchange rate for period '{request.Period}' already exists.");
+
             DocumentDto? document = null;
+            DocumentDto? submittedDocument = null;
+
+            try
+            {
+                document = await _documentService.CreateAsync(
+                   BuildCreateDocumentRequest(request, header.Id), cancellationToken)
+                   ?? throw new InvalidOperationException(
+                       "External Document API returned null after CreateAsync.");
+
+                submittedDocument = await _documentService.SubmitAsync(
+                    document.Id,
+                    new NotRequireComment { Comment = request.Comment },
+                    cancellationToken)
+                    ?? throw new InvalidOperationException(
+                        $"External Document API returned null after SubmitAsync for document {document.Id}.");
+
+                _logger.LogInformation(
+                    "Document {DocumentId} created and submitted successfully.", document.Id);
+            }
+            catch
+            {
+                if (document?.Id > 0)
+                    await TryDeleteDocumentAsync(document.Id, cancellationToken);
+                throw;
+            }
 
             await _unitOfWork.BeginTransactionAsync(cancellationToken);
             try
             {
-                document = await _documentService.CreateAsync(
-                    BuildCreateDocumentRequest(request), cancellationToken)
-                    ?? throw new InvalidOperationException("External Document API returned null after CreateAsync.");
-
-                header.DocumentId = document.Id;
-                header.DocumentNumber = document.DocumentNo;
-                header.DocumentStatus = document.DocumentStatus;
-
-                header.EffectiveDate = document.EffectiveDate;
-                header.IsUrgent = document.IsUrgent;
-                header.Remarks = document.Remarks;
-
-                header.CompletedAt = document.CompletedAt;
+                header.DocumentId = submittedDocument.Id;
+                header.DocumentNumber = submittedDocument.DocumentNo;
+                header.DocumentStatus = submittedDocument.DocumentStatus;
+                header.EffectiveDate = submittedDocument.EffectiveDate;
+                header.IsUrgent = submittedDocument.IsUrgent;
+                header.Remarks = submittedDocument.Remarks;
+                header.CompletedAt = submittedDocument.CompletedAt;
                 UpdateExchangeRateData(header, periodDate, request);
 
                 await _unitOfWork.SaveChangesAsync(cancellationToken);
                 await _unitOfWork.CommitTransactionAsync(cancellationToken);
 
                 _logger.LogInformation(
-                    "Document {DocumentId} created and DB saved for ExchangeRateHeader {HeaderId}.",
-                    document.Id, header.Id);
+                    "DB saved for ExchangeRateHeader {HeaderId} with Document {DocumentId}.",
+                    header.Id, submittedDocument.Id);
 
+                var result = await _unitOfWork.ExchangeRateHeaders
+                    .GetWithDetailsAsync(header.Id) ?? header;
+
+                return _mapper.Map<ExchangeRateHeaderDetailDto>(result);
             }
-            catch
+            catch (Exception ex)
             {
                 await _unitOfWork.RollbackTransactionAsync(cancellationToken);
 
-                if (document?.Id > 0)
-                    await TryDeleteDocumentAsync(document.Id, cancellationToken);
+                _logger.LogError(ex,
+                    "DB save failed after Create+Submit for document {DocumentId}. " +
+                    "Attempting RollbackSubmit then Delete.",
+                    submittedDocument.Id);
 
+                await TryRollbackSubmitAsync(submittedDocument.Id, cancellationToken);
+                await TryDeleteDocumentAsync(submittedDocument.Id, cancellationToken);
                 throw;
             }
-
-            await SubmitDocumentAsync(header, request.Comment, cancellationToken);
-            var result = await _unitOfWork.ExchangeRateHeaders
-                    .GetWithDetailsAsync(request.Id)
-                    ?? header;
-
-            return _mapper.Map<ExchangeRateHeaderDetailDto>(result);
         }
 
         private async Task<ExchangeRateHeaderDetailDto> UpdateDocumentAndSubmitAsync(
@@ -153,76 +203,58 @@ namespace GPCS_ExchangeRate.Application.Features.ExchangeRates.Commands.SubmitEx
         {
             var periodDate = PeriodParser.Parse(request.Period);
 
-            await _unitOfWork.BeginTransactionAsync(cancellationToken);
+            DocumentDto? submittedDocument = null;
             try
             {
                 await _documentService.UpdateAsync(
                     header.DocumentId!.Value,
-                    BuildUpdateDocumentRequest(request),
+                    BuildUpdateDocumentRequest(request, header.DocumentId.Value),
                     cancellationToken);
 
-                UpdateExchangeRateData(header, periodDate, request);
-
-                await _unitOfWork.SaveChangesAsync(cancellationToken);
-                await _unitOfWork.CommitTransactionAsync(cancellationToken);
+                submittedDocument = await _documentService.SubmitAsync(
+                    header.DocumentId!.Value,
+                    new NotRequireComment { Comment = request.Comment },
+                    cancellationToken)
+                    ?? throw new InvalidOperationException(
+                        $"External Document API returned null after SubmitAsync for document {header.DocumentId.Value}.");
 
                 _logger.LogInformation(
-                    "Document {DocumentId} updated and DB saved for ExchangeRateHeader {HeaderId}.",
-                    header.DocumentId.Value, header.Id);
+                    "Document {DocumentId} updated and submitted successfully.", header.DocumentId.Value);
             }
             catch
             {
-                await _unitOfWork.RollbackTransactionAsync(cancellationToken);
                 throw;
             }
-
-            await SubmitDocumentAsync(header, request.Comment, cancellationToken);
-            var result = await _unitOfWork.ExchangeRateHeaders
-                    .GetWithDetailsAsync(request.Id)
-                    ?? header;
-
-            return _mapper.Map<ExchangeRateHeaderDetailDto>(result);
-        }
-
-        private async Task SubmitDocumentAsync(
-            ExchangeRateHeader header,
-            string? comment,
-            CancellationToken cancellationToken)
-        {
-            var docId = header.DocumentId!.Value;
-
-            var document = await _documentService.SubmitAsync(
-                docId,
-                new NotRequireComment { Comment = comment },
-                cancellationToken)
-                ?? throw new InvalidOperationException(
-                    $"External Document API returned null after SubmitAsync for document {docId}.");
-
-            _logger.LogInformation("Document {DocumentId} submitted successfully.", docId);
 
             await _unitOfWork.BeginTransactionAsync(cancellationToken);
             try
             {
-                header.DocumentStatus = document.DocumentStatus;
-                header.CompletedAt = document.CompletedAt;
+                UpdateExchangeRateData(header, periodDate, request);
+                header.DocumentStatus = submittedDocument.DocumentStatus;
+                header.CompletedAt = submittedDocument.CompletedAt;
 
                 await _unitOfWork.SaveChangesAsync(cancellationToken);
                 await _unitOfWork.CommitTransactionAsync(cancellationToken);
 
                 _logger.LogInformation(
-                    "DocumentStatus updated to '{Status}' for ExchangeRateHeader {HeaderId}.",
-                    document.DocumentStatus, header.Id);
+                    "DB saved for ExchangeRateHeader {HeaderId} with Document {DocumentId}.",
+                    header.Id, header.DocumentId!.Value);
+
+                var result = await _unitOfWork.ExchangeRateHeaders
+                    .GetWithDetailsAsync(request.Id) ?? header;
+
+                return _mapper.Map<ExchangeRateHeaderDetailDto>(result);
             }
             catch (Exception ex)
             {
                 await _unitOfWork.RollbackTransactionAsync(cancellationToken);
 
                 _logger.LogError(ex,
-                    "Failed to save DocumentStatus after SubmitAsync for document {DocumentId}. Attempting RollbackSubmitAsync.",
-                    docId);
+                    "DB save failed after Update+Submit for document {DocumentId}. " +
+                    "Attempting RollbackSubmit.",
+                    header.DocumentId!.Value);
 
-                await TryRollbackSubmitAsync(docId, cancellationToken);
-
+                await TryRollbackSubmitAsync(header.DocumentId!.Value, cancellationToken);
                 throw;
             }
         }
@@ -278,7 +310,7 @@ namespace GPCS_ExchangeRate.Application.Features.ExchangeRates.Commands.SubmitEx
             }).ToList();
         }
 
-        private CreateDocumentRequest BuildCreateDocumentRequest(SubmitExchangeRateCommand request) =>
+        private CreateDocumentRequest BuildCreateDocumentRequest(SubmitExchangeRateCommand request, int headerId) =>
             new()
             {
                 Title = request.Title,
@@ -287,6 +319,8 @@ namespace GPCS_ExchangeRate.Application.Features.ExchangeRates.Commands.SubmitEx
                 IsUrgent = request.IsUrgent,
                 Remarks = request.Remarks,
                 Comment = request.Comment,
+                SourceDocumentId = headerId.ToString(),
+                // SourceUrl = External API will be calculated based on DocumentId, so no need to set here
                 WorkflowCreateRequest = new CreateWorkflowInstanceRequest
                 {
                     RouteId = _workflowConfiguration.RouteId,
@@ -295,9 +329,10 @@ namespace GPCS_ExchangeRate.Application.Features.ExchangeRates.Commands.SubmitEx
                 }
             };
 
-        private UpdateDocumentRequest BuildUpdateDocumentRequest(SubmitExchangeRateCommand request) =>
+        private UpdateDocumentRequest BuildUpdateDocumentRequest(SubmitExchangeRateCommand request, int documentId) =>
             new()
             {
+                DocumentId = documentId,
                 Title = request.Title,
                 EffectiveDate = request.EffectiveDate ?? _dateTimeService.Now,
                 IsUrgent = request.IsUrgent,
@@ -310,6 +345,5 @@ namespace GPCS_ExchangeRate.Application.Features.ExchangeRates.Commands.SubmitEx
                     OrganizationalUnitIds = []
                 }
             };
-
     }
 }

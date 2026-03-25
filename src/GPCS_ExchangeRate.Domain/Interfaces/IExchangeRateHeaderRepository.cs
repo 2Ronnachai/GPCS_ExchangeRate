@@ -9,5 +9,17 @@ public interface IExchangeRateHeaderRepository : IGenericRepository<ExchangeRate
 
     Task<List<ExchangeRateHeader>> GetAllWithDetailsAsync();
 
-    Task<IReadOnlyList<ExchangeRateHeader>> GetRecentWithDetailsAsync(int take);
+    Task<List<ExchangeRateHeader>> GetRecentCompletedWithDetailsAsync(int take);
+    Task<List<ExchangeRateHeader>> GetPendingApprovalWithDetailsAsync();
+
+    Task<ExchangeRateHeader?> GetPreviousCompletedWithDetailsAsync(
+        DateTime period,
+        CancellationToken cancellationToken = default);
+
+    Task<IReadOnlyList<ExchangeRateHeader>> GetPreviousCompletedBatchAsync(
+        IEnumerable<DateTime> periods,
+        CancellationToken cancellationToken = default);
+
+    Task<bool> ExistByPeriodAsync(DateTime period, CancellationToken cancellationToken = default);
+    Task<bool> ExistByPeriodExcludingIdAsync(DateTime period, int excludeId, CancellationToken cancellationToken = default);
 }

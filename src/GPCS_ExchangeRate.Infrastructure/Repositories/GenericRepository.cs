@@ -26,6 +26,9 @@ public class GenericRepository<T>(AppDbContext context) : IGenericRepository<T> 
     public async Task AddRangeAsync(IEnumerable<T> entities)
         => await _dbSet.AddRangeAsync(entities);
 
+    public async Task<int> CountAsync(Expression<Func<T, bool>>? predicate = null)
+        => predicate == null ? await _dbSet.CountAsync() : await _dbSet.CountAsync(predicate);
+
     public void Update(T entity)
         => _dbSet.Update(entity);
 

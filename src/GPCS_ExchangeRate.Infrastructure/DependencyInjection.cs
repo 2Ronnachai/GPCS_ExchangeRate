@@ -73,6 +73,8 @@ namespace GPCS_ExchangeRate.Infrastructure
             services.AddSingleton<IWorkflowConfiguration>(sp =>
                 sp.GetRequiredService<IOptions<WorkflowConfiguration>>().Value);
 
+            services.AddScoped<IExternalDbService, ExternalDbService>();
+
             return services;
         }
     }

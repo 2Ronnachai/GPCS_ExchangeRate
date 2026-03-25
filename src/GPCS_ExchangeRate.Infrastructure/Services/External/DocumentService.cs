@@ -3,6 +3,7 @@ using GPCS_ExchangeRate.Application.Dtos.Documents.Responses;
 using GPCS_ExchangeRate.Application.Interfaces.External;
 using GPCS_ExchangeRate.Domain.Constants;
 using Microsoft.Extensions.Logging;
+using System.Net;
 using System.Net.Http.Json;
 
 namespace GPCS_ExchangeRate.Infrastructure.Services.External
@@ -19,14 +20,17 @@ namespace GPCS_ExchangeRate.Infrastructure.Services.External
         public Task<DocumentDto?> GetByIdAsync(int id, CancellationToken ct = default)
             => SendAsync<DocumentDto>(HttpMethod.Get, BuildUrl(DocumentEndpoints.GetDocumentById, id), null, ct);
 
+        public Task<IEnumerable<DocumentDto>?> GetByIdsAsync(IEnumerable<int> ids, CancellationToken ct = default)
+            => SendAsync<IEnumerable<DocumentDto>?>(HttpMethod.Post, BuildUrl(DocumentEndpoints.GetDocumentsByIds), new { ids }, ct);
+
         public Task<DocumentDto?> CreateAsync(CreateDocumentRequest request, CancellationToken ct = default)
             => SendAsync<DocumentDto>(HttpMethod.Post, BuildUrl(DocumentEndpoints.CreateDocument), request, ct);
 
         public Task<DocumentDto?> UpdateAsync(int id, UpdateDocumentRequest request, CancellationToken ct = default)
             => SendAsync<DocumentDto>(HttpMethod.Put, BuildUrl(DocumentEndpoints.UpdateDocument, id), request, ct);
 
-        public Task<DocumentDto?> DeleteAsync(int id, CancellationToken ct = default)
-            => SendAsync<DocumentDto>(HttpMethod.Delete, BuildUrl(DocumentEndpoints.DeleteDocument, id), null, ct);
+        public Task DeleteAsync(int id, CancellationToken ct = default)
+            => SendAsync<object>(HttpMethod.Delete, BuildUrl(DocumentEndpoints.DeleteDocument, id), null, ct);
 
         // ── Actions ───────────────────────────────────────────────────────────────
 
@@ -68,6 +72,7 @@ namespace GPCS_ExchangeRate.Infrastructure.Services.External
         private async Task<T?> SendAsync<T>(HttpMethod method, string url, object? body, CancellationToken ct)
         {
             using var request = new HttpRequestMessage(method, url);
+
             if (body is not null)
                 request.Content = JsonContent.Create(body);
 
@@ -77,6 +82,13 @@ namespace GPCS_ExchangeRate.Infrastructure.Services.External
             {
                 _logger.LogWarning("External API {Method} {Url} returned {StatusCode}", method, url, response.StatusCode);
                 response.EnsureSuccessStatusCode();
+            }
+
+            if (response.StatusCode == HttpStatusCode.NoContent ||
+                response.Content == null ||
+                response.Content.Headers.ContentLength == 0)
+            {
+                return default;
             }
 
             var envelope = await response.Content

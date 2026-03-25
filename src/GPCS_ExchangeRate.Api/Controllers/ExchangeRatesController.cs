@@ -1,4 +1,6 @@
 using GPCS_ExchangeRate.Api.Models;
+using GPCS_ExchangeRate.Application.Features.Dashboards.Dto;
+using GPCS_ExchangeRate.Application.Features.Dashboards.Queries.GetDashboard;
 using GPCS_ExchangeRate.Application.Features.ExchangeRates.Commands.ApproveExchangeRate;
 using GPCS_ExchangeRate.Application.Features.ExchangeRates.Commands.CancelExchangeRate;
 using GPCS_ExchangeRate.Application.Features.ExchangeRates.Commands.CreateExchangeRate;
@@ -31,11 +33,22 @@ public class ExchangeRatesController(IMediator mediator,ICurrentUserService curr
         return OkResponse(result);
     }
 
-    [HttpGet("recent")]
-    [ProducesResponseType(typeof(ApiResponse<List<ExchangeRateHeaderDetailDto>>), StatusCodes.Status200OK)]
-    public async Task<IActionResult> GetRecent()
+    [HttpGet("recent-completed")]
+    [ProducesResponseType(typeof(ApiResponse<List<ExchangeRateHeaderDeltaDto>>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetRecentCompleted()
     {
         var result = await _mediator.Send(new GetRecentExchangeRateQuery());
+        return OkResponse(result);
+    }
+
+    [HttpGet("dashboard")]
+    [ProducesResponseType(typeof(ApiResponse<DashboardDto>), StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetDashboard()
+    {
+        var userName = _currentUserService.GetUserName()
+            ?? throw new InvalidOperationException("Current user name cannot be null.");
+
+        var result = await _mediator.Send(new GetDashboardQuery { UserName = userName });
         return OkResponse(result);
     }
 
@@ -61,6 +74,8 @@ public class ExchangeRatesController(IMediator mediator,ICurrentUserService curr
     {
         if (id != command.Id)
             return BadRequest("Route id does not match body id");
+
+        command.UserName = _currentUserService.GetUserName();
 
         var result = await _mediator.Send(command, ct);
 
